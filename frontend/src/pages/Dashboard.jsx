@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle } from "lucide-react";
+import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle, Cake } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const SEVERITY = {
@@ -14,6 +14,7 @@ const ICONS = {
   unpaid_fee: IndianRupee,
   lead_followup: PhoneCall,
   attendance: AlertTriangle,
+  birthday: Cake,
 };
 
 export default function Dashboard() {
@@ -59,7 +60,8 @@ export default function Dashboard() {
               const sev = SEVERITY[a.severity] || SEVERITY.low;
               const Icon = ICONS[a.type] || Circle;
               const link = a.type === "lead_followup" ? "/leads" :
-                          a.type === "unpaid_fee" ? "/payments" : "/students";
+                          a.type === "unpaid_fee" ? "/payments" :
+                          a.type === "birthday" ? `/students/${a.student_id}` : "/students";
               return (
                 <Link key={a.id + a.type} to={link} data-testid={`alert-${a.type}-${a.id}`}
                   className={`flex items-start gap-3 p-4 bg-white border border-border/60 border-l-4 ${sev.color} hover:bg-secondary/40 transition-colors`}>

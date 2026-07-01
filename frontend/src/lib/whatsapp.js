@@ -24,6 +24,34 @@ export function studentReminderMessage(student, unpaidPayment) {
   return `Hi ${to},\n\nThis is regarding ${student.name}'s classes at The Chess Lifestyle chess academy.\n\nBest regards.`;
 }
 
+export function studentBirthdayMessage(student) {
+  const to = student.parent_name || student.name || "there";
+  const who = student.name || "your child";
+  return `Hi ${to},\n\nWishing ${who} a very happy birthday! ♟️\n\nMay this year be full of great moves, brilliant checkmates and joyful learning.\n\n— Team The Chess Lifestyle`;
+}
+
+export function ageFromDob(dob) {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
+export function nextBirthdayDays(dob) {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+  if (next < today) next = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+  return Math.round((next - today) / (1000 * 60 * 60 * 24));
+}
+
 export function leadOutreachMessage(lead) {
   const templates = {
     new: `Hi ${lead.name},\n\nThanks for your interest in The Chess Lifestyle chess academy! Would you like to book a free trial class?\n\nHappy to answer any questions.`,

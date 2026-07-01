@@ -108,7 +108,7 @@ export default function Students() {
 function StudentDialog({ onSaved, student }) {
   const [form, setForm] = useState(student || {
     name: "", phone: "", parent_name: "", parent_phone: "",
-    level: "Beginner", monthly_fee: 2500, notes: "", status: "active"
+    level: "Beginner", monthly_fee: 2500, notes: "", status: "active", dob: ""
   });
   const [saving, setSaving] = useState(false);
 
@@ -163,6 +163,10 @@ function StudentDialog({ onSaved, student }) {
         <div>
           <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
           <Input type="number" data-testid="student-form-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
+          <Input type="date" data-testid="student-form-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>

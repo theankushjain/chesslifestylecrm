@@ -113,6 +113,7 @@ class StudentIn(BaseModel):
     monthly_fee: float = 0
     notes: str = ""
     status: str = "active"
+    dob: Optional[str] = None  # YYYY-MM-DD
 
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
@@ -124,6 +125,7 @@ class StudentUpdate(BaseModel):
     monthly_fee: Optional[float] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+    dob: Optional[str] = None
 
 class LeadIn(BaseModel):
     name: str
@@ -183,6 +185,31 @@ async def on_startup():
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
     await seed_admin()
     await seed_demo_data()
+    await backfill_dobs()
+
+async def backfill_dobs():
+    """Backfill DOB for seeded students that were created before the DOB field existed."""
+    today = date.today()
+    presets = {
+        "Aarav Mehta": (3, 12),
+        "Diya Kapoor": (0, 14),
+        "Kabir Reddy": (5, 9),
+        "Ishaan Verma": (45, 11),
+        "Aanya Iyer": (120, 13),
+        "Vihaan Singh": (200, 10),
+    }
+    for name, (offset_days, age) in presets.items():
+        s = await db.students.find_one({"name": name, "dob": {"$in": [None, ""]}})
+        if not s:
+            # also match students that are missing the field entirely
+            s = await db.students.find_one({"name": name, "dob": {"$exists": False}})
+        if s:
+            bday = today + timedelta(days=offset_days)
+            try:
+                dob = date(bday.year - age, bday.month, bday.day)
+            except ValueError:
+                dob = date(bday.year - age, bday.month, 28)
+            await db.students.update_one({"_id": s["_id"]}, {"$set": {"dob": dob.isoformat()}})
 
 async def seed_admin():
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
@@ -207,19 +234,28 @@ async def seed_demo_data():
     })
 
     students_data = [
-        {"name": "Aarav Mehta", "phone": "+91-98765-11111", "parent_name": "Rohit Mehta", "parent_phone": "+91-98765-22222", "level": "Intermediate", "monthly_fee": 3000},
-        {"name": "Diya Kapoor", "phone": "+91-98765-11112", "parent_name": "Sneha Kapoor", "parent_phone": "+91-98765-22223", "level": "Advanced", "monthly_fee": 4500},
-        {"name": "Kabir Reddy", "phone": "+91-98765-11113", "parent_name": "Anil Reddy", "parent_phone": "+91-98765-22224", "level": "Beginner", "monthly_fee": 2500},
-        {"name": "Ishaan Verma", "phone": "+91-98765-11114", "parent_name": "Vikas Verma", "parent_phone": "+91-98765-22225", "level": "Intermediate", "monthly_fee": 3000},
-        {"name": "Aanya Iyer", "phone": "+91-98765-11115", "parent_name": "Meera Iyer", "parent_phone": "+91-98765-22226", "level": "Advanced", "monthly_fee": 4500},
-        {"name": "Vihaan Singh", "phone": "+91-98765-11116", "parent_name": "Karan Singh", "parent_phone": "+91-98765-22227", "level": "Beginner", "monthly_fee": 2500},
+        {"name": "Aarav Mehta", "phone": "+91-98765-11111", "parent_name": "Rohit Mehta", "parent_phone": "+91-98765-22222", "level": "Intermediate", "monthly_fee": 3000, "dob_offset_days": 3, "age": 12},
+        {"name": "Diya Kapoor", "phone": "+91-98765-11112", "parent_name": "Sneha Kapoor", "parent_phone": "+91-98765-22223", "level": "Advanced", "monthly_fee": 4500, "dob_offset_days": 0, "age": 14},
+        {"name": "Kabir Reddy", "phone": "+91-98765-11113", "parent_name": "Anil Reddy", "parent_phone": "+91-98765-22224", "level": "Beginner", "monthly_fee": 2500, "dob_offset_days": 5, "age": 9},
+        {"name": "Ishaan Verma", "phone": "+91-98765-11114", "parent_name": "Vikas Verma", "parent_phone": "+91-98765-22225", "level": "Intermediate", "monthly_fee": 3000, "dob_offset_days": 45, "age": 11},
+        {"name": "Aanya Iyer", "phone": "+91-98765-11115", "parent_name": "Meera Iyer", "parent_phone": "+91-98765-22226", "level": "Advanced", "monthly_fee": 4500, "dob_offset_days": 120, "age": 13},
+        {"name": "Vihaan Singh", "phone": "+91-98765-11116", "parent_name": "Karan Singh", "parent_phone": "+91-98765-22227", "level": "Beginner", "monthly_fee": 2500, "dob_offset_days": 200, "age": 10},
     ]
     student_ids = []
     for s in students_data:
         sid = str(uuid.uuid4())
         student_ids.append(sid)
+        # Build a DOB: (today + offset_days) minus `age` years => birthday is `offset_days` from today
+        birthday_this_year = today + timedelta(days=s["dob_offset_days"])
+        birth_year = birthday_this_year.year - s["age"]
+        try:
+            dob = date(birth_year, birthday_this_year.month, birthday_this_year.day)
+        except ValueError:
+            dob = date(birth_year, birthday_this_year.month, 28)
+        payload = {k: v for k, v in s.items() if k not in ("dob_offset_days", "age")}
         await db.students.insert_one({
-            "_id": sid, **s, "email": "", "notes": "", "status": "active",
+            "_id": sid, **payload, "email": "", "notes": "", "status": "active",
+            "dob": dob.isoformat(),
             "joined_date": iso(now_utc() - timedelta(days=60)),
             "created_at": iso(now_utc()),
         })
@@ -514,6 +550,42 @@ async def alerts(user: dict = Depends(require_roles("admin", "staff"))):
                 "severity": "medium",
                 "title": f"{s['name']} missing classes",
                 "message": f"{absences} absences in last 14 days",
+                "student_id": s["_id"],
+            })
+
+    # Upcoming birthdays (today + next 7 days)
+    for s in students:
+        dob_str = s.get("dob")
+        if not dob_str:
+            continue
+        try:
+            dob_d = date.fromisoformat(dob_str)
+        except Exception:
+            continue
+        # Next occurrence of this birthday
+        try:
+            bday_this_year = date(today.year, dob_d.month, dob_d.day)
+        except ValueError:
+            bday_this_year = date(today.year, dob_d.month, 28)
+        if bday_this_year < today:
+            try:
+                bday_this_year = date(today.year + 1, dob_d.month, dob_d.day)
+            except ValueError:
+                bday_this_year = date(today.year + 1, dob_d.month, 28)
+        days_to = (bday_this_year - today).days
+        if days_to <= 7:
+            turning = bday_this_year.year - dob_d.year
+            if days_to == 0:
+                msg = f"Birthday today — turns {turning}. Send a wish!"
+                sev = "high"
+            else:
+                msg = f"Birthday in {days_to} day{'s' if days_to != 1 else ''} ({bday_this_year.isoformat()}) — turns {turning}."
+                sev = "medium" if days_to <= 3 else "low"
+            alerts_list.append({
+                "id": f"bday-{s['_id']}", "type": "birthday",
+                "severity": sev,
+                "title": f"{s['name']}'s birthday",
+                "message": msg,
                 "student_id": s["_id"],
             })
 

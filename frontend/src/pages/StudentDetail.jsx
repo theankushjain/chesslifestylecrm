@@ -8,11 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
-import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
+import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, ageFromDob, nextBirthdayDays } from "@/lib/whatsapp";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -91,6 +91,21 @@ export default function StudentDetail() {
               <div>{student.phone || "no phone"}</div>
               <div>Parent: {student.parent_name || "—"} · {student.parent_phone || "—"}</div>
               <div className="font-mono">₹{student.monthly_fee}/month</div>
+              {student.dob && (
+                <div className="flex items-center gap-1.5 pt-1">
+                  <Cake className="w-3.5 h-3.5 text-brand" />
+                  <span>{new Date(student.dob).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {ageFromDob(student.dob) !== null && ` · ${ageFromDob(student.dob)} yrs`}
+                    {(() => {
+                      const d = nextBirthdayDays(student.dob);
+                      if (d === null) return null;
+                      if (d === 0) return <span className="ml-2 text-[10px] uppercase tracking-widest bg-brand text-white px-1.5 py-0.5">Today!</span>;
+                      if (d <= 7) return <span className="ml-2 text-[10px] uppercase tracking-widest bg-warning text-white px-1.5 py-0.5">In {d}d</span>;
+                      return null;
+                    })()}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -103,11 +118,15 @@ export default function StudentDetail() {
               <button
                 onClick={() => {
                   const unpaid = payments.find((p) => p.status !== "paid");
-                  const ok = openWhatsapp(student.parent_phone || student.phone, studentReminderMessage(student, unpaid));
+                  const daysToBday = nextBirthdayDays(student.dob);
+                  const msg = daysToBday === 0
+                    ? studentBirthdayMessage(student)
+                    : studentReminderMessage(student, unpaid);
+                  const ok = openWhatsapp(student.parent_phone || student.phone, msg);
                   if (!ok) toast.error("No valid phone number");
                 }}
                 data-testid="student-whatsapp-btn"
-                title="Send WhatsApp reminder"
+                title={nextBirthdayDays(student.dob) === 0 ? "Send birthday wish" : "Send WhatsApp reminder"}
                 className="p-3 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10">
                 <WhatsappIcon className="w-4 h-4" />
               </button>
@@ -217,6 +236,7 @@ function StudentEditDialog({ student, onSaved }) {
     name: student.name, phone: student.phone || "", parent_name: student.parent_name || "",
     parent_phone: student.parent_phone || "", level: student.level || "Beginner",
     monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
+    dob: student.dob || "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -282,6 +302,10 @@ function StudentEditDialog({ student, onSaved }) {
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
           <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
+          <Input type="date" data-testid="student-edit-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
         </div>
       </div>
       <DialogFooter>
