@@ -1,0 +1,23 @@
+{
+  "summary": "First-finish smoke pass for Chess Lifestyle CRM. Backend auth (admin/staff/student), students, leads, alerts, chat endpoints all healthy and returning seeded data. Frontend admin login flows through dashboard (alerts + 4 stat cards + 6 funnel stages), Students list (6 rows), StudentDetail with mark-present control, Leads list (7 rows) with working filter (New -> 1 lead), Payments page, and AI Chatbot which returned a live list of 4 unpaid students (Diya Kapoor, Kabir Reddy, Aanya Iyer, Vihaan Singh) using gemini-2.5-flash. Logout clears tcl_token and redirects to /login. Student login (aarav@student.com) is correctly redirected to /portal and attempting to navigate to /leads is redirected back to /portal (role-based route guard works).",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "POST /api/auth/login for admin, staff, student all return token + user with correct role",
+    "GET /api/students returns 6 students; GET /api/leads returns 7 leads; GET /api/alerts returns 11 alerts",
+    "POST /api/chat (admin) returns live seeded reply naming unpaid students",
+    "Admin login stores tcl_token in localStorage and redirects to dashboard (root '/')",
+    "Dashboard renders alerts-section, stat-students/leads/revenue/unpaid, and all 6 funnel-<stage> tiles",
+    "Students page shows 6 rows; StudentDetail shows mark-present control",
+    "Leads page shows 7 rows; filter-new correctly narrows list to 1 lead",
+    "Payments page loads with payments-list",
+    "Chatbot UI: sending 'Who has not paid fees this month?' returns response containing Kapoor/Iyer/Reddy/Vihaan",
+    "logout-btn clears tcl_token and returns to /login",
+    "Student login redirects to /portal; direct navigation to /leads is blocked and redirects back to /portal"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "notes": "Nav labels in UI are 'Fees' and 'AI' but data-testid nav-payments and nav-chat are intact and functional. Login redirects to '/' rather than '/dashboard' (dashboard is mounted on root), which is a routing spec nuance, not a bug. Did not exhaustively test add-student/add-lead dialogs, mark-paid mutation, or call-log creation in this latency-sensitive pass — recommend full testing pass to cover those write flows.",
+  "full_testing_deferred": true
+}
