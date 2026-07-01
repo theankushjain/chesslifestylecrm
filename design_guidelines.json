@@ -1,0 +1,111 @@
+{
+  "project_name": "The Chess Lifestyle CRM",
+  "theme": "Light",
+  "archetype": "Archetype 4: Swiss & High-Contrast (with subtle Archetype 5 Luxury for chess motif)",
+  "design_principles": [
+    "Fusion over Imitation: Combine rigid CRM data structures with classic chess tournament elegance.",
+    "Emotion First: The app must feel authoritative, precise, and premium.",
+    "Content is King: Data clarity is paramount. Emphasize alerts and pipeline stages.",
+    "Contrast: Stark black and white, reflecting the chessboard. Accents used strictly for functional status."
+  ],
+  "colors": {
+    "background": "#FAFAFA",
+    "foreground": "#0A0A0A",
+    "card": "#FFFFFF",
+    "card_foreground": "#0A0A0A",
+    "popover": "#FFFFFF",
+    "popover_foreground": "#0A0A0A",
+    "primary": "#0A0A0A",
+    "primary_foreground": "#FAFAFA",
+    "secondary": "#F4F4F5",
+    "secondary_foreground": "#18181B",
+    "muted": "#F4F4F5",
+    "muted_foreground": "#71717A",
+    "accent": "#F4F4F5",
+    "accent_foreground": "#0A0A0A",
+    "destructive": "#DC2626",
+    "destructive_foreground": "#FAFAFA",
+    "border": "#E4E4E7",
+    "input": "#E4E4E7",
+    "ring": "#0A0A0A",
+    "brand_accent": "#D4AF37",
+    "status": {
+      "success": "#16A34A",
+      "warning": "#D97706",
+      "error": "#DC2626",
+      "info": "#2563EB"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "headings": "'Cormorant Garamond', serif",
+      "body": "'IBM Plex Sans', sans-serif",
+      "mono": "'IBM Plex Mono', monospace"
+    },
+    "rules": [
+      "DO NOT use Inter or generic sans for headings. Headings MUST be Cormorant Garamond for a classic, authoritative chess vibe.",
+      "Body and data tables MUST use IBM Plex Sans for maximum legibility.",
+      "Headings (>32px) must use tracking-tight.",
+      "Overlines/Labels must be UPPERCASE, text-xs, tracking-[0.2em].",
+      "Do not exceed text-6xl for hero/main headings."
+    ]
+  },
+  "layout_and_spacing": {
+    "strategy": "Control Room Grid (Dense, Data Correlation) optimized for Mobile-First.",
+    "spacing": "Generous spacing. Use p-4 to p-8 on containers.",
+    "alignment": "Mobile-first: always start with grid-cols-1. Left-align dense content.",
+    "navigation": "Mobile: Sticky bottom navigation bar (Glassmorphism). Desktop: Left sidebar.",
+    "borders": "Expose the skeleton. Use Grid Borders (The Technical Look) - 1px subtle borders (border-border/40) for dashboard items."
+  },
+  "surface_strategies": {
+    "headers_nav": "Crystal Glass: bg-white/70, backdrop-blur-xl, border-b border-border/40.",
+    "dashboard_cards": "Flat solid background, 1px border-border, no shadow. Hover: -translate-y-1, shadow-sm.",
+    "decorative_motif": "Subtle checkerboard pattern in the background of empty states or auth screens (opacity 5%)."
+  },
+  "components": {
+    "libraries": [
+      "shadcn/ui",
+      "lucide-react",
+      "framer-motion",
+      "recharts"
+    ],
+    "rules": [
+      "Use Shadcn components but heavily customize them. Strip out default Vercel-look.",
+      "Forms: Use Shadcn Input, Select, Form, Checkbox.",
+      "Cards: Go rectangular, dense styles. max 4px to 8px border-radius.",
+      "Buttons: Sharp edges or slightly rounded. Primary buttons are stark black."
+    ]
+  },
+  "views_and_features": {
+    "auth": "Multi-role login. Split screen on desktop with gold chess pieces image. Overlay opacity max bg-black/50.",
+    "dashboard": "Alerts prioritized at the top (unpaid fees, missed classes). Bento grid for quick stats.",
+    "students": "List view with quick actions (call, mark attendance, note).",
+    "leads_pipeline": "Funnel stages (New, Contacted, Trial Scheduled, Trial Done, Enrolled, Not Interested). Kanban on desktop, vertical expandable list on mobile.",
+    "chatbot": "Floating AI assistant FAB. Opens a sleek, chat interface for querying CRM data."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Minimum 4.5:1 for normal text.",
+    "testing": "All interactive and key informational elements MUST include data-testid attribute (e.g., data-testid='login-submit-button')."
+  },
+  "image_urls": [
+    {
+      "url": "https://images.pexels.com/photos/6041464/pexels-photo-6041464.jpeg",
+      "category": "auth_hero",
+      "description": "Gold chess pieces on black background. Use for login/auth screen."
+    },
+    {
+      "url": "https://images.pexels.com/photos/28397730/pexels-photo-28397730.jpeg",
+      "category": "empty_state",
+      "description": "Chess tournament scene. Use for dashboard banners or empty data states."
+    }
+  ],
+  "instructions_to_main_agent": [
+    "1. Update index.css to import 'Cormorant Garamond' and 'IBM Plex Sans' from Google Fonts.",
+    "2. Configure tailwind.config.js with the specified fonts and color palette.",
+    "3. Scaffold the layout with a mobile bottom tab navigation (Dashboard, Students, Leads, Chat).",
+    "4. Implement the AI Chatbot as a prominent feature (FAB or dedicated tab). Mock the AI responses for queries.",
+    "5. Build the Leads Pipeline with functional state changes.",
+    "6. Ensure all components use 'data-testid' for testing.",
+    "7. Populate the UI with rich seeded data to demonstrate the CRM capabilities."
+  ]
+}
