@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
+import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -60,9 +62,9 @@ export default function Students() {
       ) : (
         <div className="bg-white border border-border/60 divide-y divide-border/60" data-testid="students-list">
           {filtered.map((s) => (
-            <Link key={s.id} to={`/students/${s.id}`} data-testid={`student-row-${s.id}`}
-              className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={s.id} className="flex items-center justify-between hover:bg-secondary/50 transition-colors">
+              <Link to={`/students/${s.id}`} data-testid={`student-row-${s.id}`}
+                className="flex items-center gap-3 min-w-0 flex-1 p-4">
                 <div className="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center font-serif text-lg shrink-0">
                   {s.name[0]}
                 </div>
@@ -72,13 +74,27 @@ export default function Students() {
                     {s.level} · {s.phone || "no phone"}
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono">₹{s.monthly_fee}/mo</span>
+              </Link>
+              <div className="flex items-center gap-2 shrink-0 px-4">
+                <span className="text-xs font-mono hidden sm:inline">₹{s.monthly_fee}/mo</span>
                 {s.status === "active" ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Circle className="w-3.5 h-3.5 text-muted-foreground" />}
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                {(s.parent_phone || s.phone) && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation();
+                      const ok = openWhatsapp(s.parent_phone || s.phone, studentReminderMessage(s, null));
+                      if (!ok) toast.error("No valid phone number");
+                    }}
+                    data-testid={`whatsapp-student-${s.id}`}
+                    title="Send WhatsApp"
+                    className="p-1.5 text-[#25D366] hover:bg-[#25D366]/10 rounded transition-colors">
+                    <WhatsappIcon className="w-4 h-4" />
+                  </button>
+                )}
+                <Link to={`/students/${s.id}`} className="p-1">
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
               </div>
-            </Link>
+            </div>
           ))}
           {filtered.length === 0 && (
             <div className="p-8 text-center text-sm text-muted-foreground">No students found.</div>

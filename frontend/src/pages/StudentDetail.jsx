@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
+import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -96,6 +98,19 @@ export default function StudentDetail() {
               <a href={`tel:${student.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="student-call-btn">
                 <Phone className="w-4 h-4" />
               </a>
+            )}
+            {(student.parent_phone || student.phone) && (
+              <button
+                onClick={() => {
+                  const unpaid = payments.find((p) => p.status !== "paid");
+                  const ok = openWhatsapp(student.parent_phone || student.phone, studentReminderMessage(student, unpaid));
+                  if (!ok) toast.error("No valid phone number");
+                }}
+                data-testid="student-whatsapp-btn"
+                title="Send WhatsApp reminder"
+                className="p-3 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10">
+                <WhatsappIcon className="w-4 h-4" />
+              </button>
             )}
             {canEdit && (
               <button onClick={() => setEditOpen(true)} data-testid="student-edit-btn"

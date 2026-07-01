@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Phone, PhoneCall, ChevronRight, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
+import { openWhatsapp, leadOutreachMessage } from "@/lib/whatsapp";
 
 export const STAGES = [
   { key: "new", label: "New", color: "bg-info text-white" },
@@ -76,9 +78,9 @@ export default function Leads() {
             const lastCall = l.call_logs?.[0];
             const followUpOverdue = l.next_follow_up && new Date(l.next_follow_up) < new Date();
             return (
-              <Link key={l.id} to={`/leads/${l.id}`} data-testid={`lead-row-${l.id}`}
-                className="flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors">
-                <div className="flex-1 min-w-0">
+              <div key={l.id} className="flex items-center gap-3 hover:bg-secondary/50 transition-colors">
+                <Link to={`/leads/${l.id}`} data-testid={`lead-row-${l.id}`}
+                  className="flex-1 min-w-0 p-4">
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="font-medium">{l.name}</div>
                     <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${stage?.color}`}>{stage?.label}</span>
@@ -91,12 +93,26 @@ export default function Leads() {
                   </div>
                   {lastCall && (
                     <div className="text-xs text-muted-foreground mt-1 italic truncate">
-                      "{lastCall.remarks || lastCall.outcome}"
+                      &ldquo;{lastCall.remarks || lastCall.outcome}&rdquo;
                     </div>
                   )}
+                </Link>
+                <div className="flex items-center gap-1 pr-4 shrink-0">
+                  {l.phone && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation();
+                        const ok = openWhatsapp(l.phone, leadOutreachMessage(l));
+                        if (!ok) toast.error("No valid phone number");
+                      }}
+                      data-testid={`whatsapp-lead-${l.id}`}
+                      title="Send WhatsApp"
+                      className="p-1.5 text-[#25D366] hover:bg-[#25D366]/10 rounded transition-colors">
+                      <WhatsappIcon className="w-4 h-4" />
+                    </button>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-              </Link>
+              </div>
             );
           })}
           {filtered.length === 0 && (

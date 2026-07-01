@@ -12,6 +12,8 @@ import { ArrowLeft, Phone, Calendar, PhoneCall, Pencil, Trash2 } from "lucide-re
 import { toast } from "sonner";
 import { STAGES } from "./Leads";
 import { useAuth } from "@/context/AuthContext";
+import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
+import { openWhatsapp, leadOutreachMessage } from "@/lib/whatsapp";
 
 const OUTCOMES = ["answered", "no_answer", "interested", "not_interested", "voicemail", "busy"];
 
@@ -91,6 +93,18 @@ export default function LeadDetail() {
               <a href={`tel:${lead.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="lead-call-btn">
                 <Phone className="w-4 h-4" />
               </a>
+            )}
+            {lead.phone && (
+              <button
+                onClick={() => {
+                  const ok = openWhatsapp(lead.phone, leadOutreachMessage(lead));
+                  if (!ok) toast.error("No valid phone number");
+                }}
+                data-testid="lead-whatsapp-btn"
+                title="Send WhatsApp"
+                className="p-3 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10">
+                <WhatsappIcon className="w-4 h-4" />
+              </button>
             )}
             <button onClick={() => setEditOpen(true)} data-testid="lead-edit-btn"
               className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
