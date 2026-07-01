@@ -5,19 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, Calendar, PhoneCall } from "lucide-react";
+import { ArrowLeft, Phone, Calendar, PhoneCall, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { STAGES } from "./Leads";
+import { useAuth } from "@/context/AuthContext";
 
 const OUTCOMES = ["answered", "no_answer", "interested", "not_interested", "voicemail", "busy"];
 
 export default function LeadDetail() {
   const { id } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
   const [lead, setLead] = useState(null);
   const [call, setCall] = useState({ outcome: "answered", remarks: "", next_follow_up: "" });
   const [posting, setPosting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const canDelete = user.role === "admin";
 
   const load = async () => {
     const { data } = await api.get(`/leads/${id}`);
@@ -47,6 +54,14 @@ export default function LeadDetail() {
     finally { setPosting(false); }
   };
 
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/leads/${id}`);
+      toast.success("Lead deleted");
+      nav("/leads");
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
   if (!lead) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
 
   const currentStage = STAGES.find((s) => s.key === lead.stage);
@@ -71,11 +86,23 @@ export default function LeadDetail() {
               </div>
             )}
           </div>
-          {lead.phone && (
-            <a href={`tel:${lead.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="lead-call-btn">
-              <Phone className="w-4 h-4" />
-            </a>
-          )}
+          <div className="flex flex-col gap-2">
+            {lead.phone && (
+              <a href={`tel:${lead.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="lead-call-btn">
+                <Phone className="w-4 h-4" />
+              </a>
+            )}
+            <button onClick={() => setEditOpen(true)} data-testid="lead-edit-btn"
+              className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
+              <Pencil className="w-4 h-4" />
+            </button>
+            {canDelete && (
+              <button onClick={() => setDeleteOpen(true)} data-testid="lead-delete-btn"
+                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stage selector */}
@@ -144,6 +171,95 @@ export default function LeadDetail() {
           )}
         </div>
       </div>
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <LeadEditDialog lead={lead} onSaved={() => { setEditOpen(false); load(); }} />
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="rounded-none">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif text-2xl">Delete this lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{lead.name}</strong> and all their call history. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-none" data-testid="lead-delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} data-testid="lead-delete-confirm"
+              className="rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function LeadEditDialog({ lead, onSaved }) {
+  const [form, setForm] = useState({
+    name: lead.name, phone: lead.phone || "", email: lead.email || "",
+    source: lead.source || "Website", notes: lead.notes || "",
+    next_follow_up: lead.next_follow_up || "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/leads/${lead.id}`, {
+        ...form,
+        next_follow_up: form.next_follow_up || null,
+      });
+      toast.success("Lead updated");
+      onSaved();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <DialogContent className="rounded-none max-w-lg">
+      <DialogHeader><DialogTitle className="font-serif text-2xl">Edit lead</DialogTitle></DialogHeader>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Name</Label>
+          <Input data-testid="lead-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Phone</Label>
+            <Input data-testid="lead-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Source</Label>
+            <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
+              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["Website", "Instagram", "Referral", "Google Ads", "Walk-in", "Other"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Email</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Next follow-up</Label>
+          <Input type="date" data-testid="lead-edit-followup" value={form.next_follow_up || ""} onChange={(e) => setForm({ ...form, next_follow_up: e.target.value })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Notes</Label>
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={save} disabled={saving || !form.name} data-testid="lead-edit-save" className="rounded-none">
+          {saving ? "Saving..." : "Save changes"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }

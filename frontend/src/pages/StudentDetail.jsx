@@ -2,9 +2,17 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+
+const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
 const STATUS_ICONS = {
   present: { icon: CheckCircle2, color: "text-success" },
@@ -15,9 +23,14 @@ const STATUS_ICONS = {
 export default function StudentDetail() {
   const { id } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
   const [student, setStudent] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const canEdit = user.role === "admin" || user.role === "staff";
+  const canDelete = user.role === "admin";
 
   const load = async () => {
     const [s, a, p] = await Promise.all([
@@ -48,6 +61,14 @@ export default function StudentDetail() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/students/${id}`);
+      toast.success("Student deleted");
+      nav("/students");
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
   if (!student) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
 
   return (
@@ -70,13 +91,51 @@ export default function StudentDetail() {
               <div className="font-mono">₹{student.monthly_fee}/month</div>
             </div>
           </div>
-          {student.phone && (
-            <a href={`tel:${student.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="student-call-btn">
-              <Phone className="w-4 h-4" />
-            </a>
-          )}
+          <div className="flex flex-col gap-2">
+            {student.phone && (
+              <a href={`tel:${student.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="student-call-btn">
+                <Phone className="w-4 h-4" />
+              </a>
+            )}
+            {canEdit && (
+              <button onClick={() => setEditOpen(true)} data-testid="student-edit-btn"
+                className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => setDeleteOpen(true)} data-testid="student-delete-btn"
+                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <StudentEditDialog student={student} onSaved={() => { setEditOpen(false); load(); }} />
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="rounded-none">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif text-2xl">Delete this student?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{student.name}</strong> along with the ability to view their records here. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-none" data-testid="student-delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} data-testid="student-delete-confirm"
+              className="rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick attendance */}
       <div className="mb-6">
@@ -137,3 +196,84 @@ export default function StudentDetail() {
 }
 
 const monthName = (m) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1];
+
+function StudentEditDialog({ student, onSaved }) {
+  const [form, setForm] = useState({
+    name: student.name, phone: student.phone || "", parent_name: student.parent_name || "",
+    parent_phone: student.parent_phone || "", level: student.level || "Beginner",
+    monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/students/${student.id}`, form);
+      toast.success("Student updated");
+      onSaved();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <DialogContent className="rounded-none max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="font-serif text-2xl">Edit student</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Name</Label>
+          <Input data-testid="student-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Phone</Label>
+            <Input data-testid="student-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Level</Label>
+            <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
+              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectContent>{LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Parent name</Label>
+            <Input value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} className="rounded-none" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Parent phone</Label>
+            <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-none" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
+            <Input type="number" data-testid="student-edit-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-none" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Status</Label>
+            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Notes</Label>
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={save} disabled={saving || !form.name} data-testid="student-edit-save" className="rounded-none">
+          {saving ? "Saving..." : "Save changes"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
