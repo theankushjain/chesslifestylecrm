@@ -12,6 +12,8 @@ import LeadDetail from "@/pages/LeadDetail";
 import Payments from "@/pages/Payments";
 import Chatbot from "@/pages/Chatbot";
 import StudentPortal from "@/pages/StudentPortal";
+import Classes from "@/pages/Classes";
+import BatchDetail from "@/pages/BatchDetail";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -41,6 +43,8 @@ function App() {
               <Route path="students/:id" element={<Protected><StudentDetail /></Protected>} />
               <Route path="leads" element={<Protected roles={["admin","staff"]}><Leads /></Protected>} />
               <Route path="leads/:id" element={<Protected roles={["admin","staff"]}><LeadDetail /></Protected>} />
+              <Route path="classes" element={<Protected roles={["admin","staff"]}><Classes /></Protected>} />
+              <Route path="classes/:id" element={<Protected roles={["admin","staff"]}><BatchDetail /></Protected>} />
               <Route path="payments" element={<Protected roles={["admin","staff"]}><Payments /></Protected>} />
               <Route path="chat" element={<Protected roles={["admin","staff"]}><Chatbot /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />

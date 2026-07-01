@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Users, Target, IndianRupee, MessageSquare, LogOut, User } from "lucide-react";
+import { LayoutDashboard, Users, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin", "staff"] },
+  { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin", "staff"] },
   { to: "/students", label: "Students", icon: Users, testid: "nav-students", roles: ["admin", "staff"] },
+  { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin", "staff"] },
   { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin", "staff"] },
   { to: "/chat", label: "AI", icon: MessageSquare, testid: "nav-chat", roles: ["admin", "staff"] },
@@ -78,7 +79,7 @@ export default function Layout() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-nav border-t border-border/40 z-40">
-        <div className={`grid ${items.length === 1 ? "grid-cols-1" : items.length === 5 ? "grid-cols-5" : "grid-cols-" + items.length}`}>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
           {items.map((n) => (
             <NavLink
               key={n.to}

@@ -175,6 +175,33 @@ class ChatIn(BaseModel):
     message: str
     session_id: Optional[str] = None
 
+class ScheduleSlot(BaseModel):
+    day: str  # mon,tue,wed,thu,fri,sat,sun
+    time: str  # "HH:MM"
+    duration_min: int = 60
+
+class BatchIn(BaseModel):
+    name: str
+    level: str = "Beginner"
+    coach: str = ""
+    notes: str = ""
+    student_ids: List[str] = []
+    schedule: List[ScheduleSlot] = []
+
+class BatchUpdate(BaseModel):
+    name: Optional[str] = None
+    level: Optional[str] = None
+    coach: Optional[str] = None
+    notes: Optional[str] = None
+    student_ids: Optional[List[str]] = None
+    schedule: Optional[List[ScheduleSlot]] = None
+
+class TakeAttendanceIn(BaseModel):
+    date: str
+    topic: str = ""
+    absent_ids: List[str] = []
+    late_ids: List[str] = []
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -183,9 +210,11 @@ async def on_startup():
     await db.leads.create_index("stage")
     await db.payments.create_index([("student_id", 1), ("year", 1), ("month", 1)], unique=True)
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
+    await db.batches.create_index("name")
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
+    await seed_batches()
 
 async def backfill_dobs():
     """Backfill DOB for seeded students that were created before the DOB field existed."""
@@ -621,7 +650,146 @@ async def stats(user: dict = Depends(require_roles("admin", "staff"))):
     }
 
 
-async def build_context() -> str:
+async def seed_batches():
+    if await db.batches.count_documents({}) > 0:
+        return
+    students = await db.students.find().to_list(200)
+    if not students:
+        return
+    by_level = {"Beginner": [], "Intermediate": [], "Advanced": []}
+    for s in students:
+        by_level.setdefault(s.get("level", "Beginner"), []).append(s["_id"])
+    presets = [
+        {"name": "Beginner Evening", "level": "Beginner", "coach": "Priya Sharma",
+         "student_ids": by_level.get("Beginner", []),
+         "schedule": [{"day": "mon", "time": "17:00", "duration_min": 60},
+                      {"day": "wed", "time": "17:00", "duration_min": 60},
+                      {"day": "fri", "time": "17:00", "duration_min": 60}]},
+        {"name": "Intermediate Evening", "level": "Intermediate", "coach": "Academy Admin",
+         "student_ids": by_level.get("Intermediate", []),
+         "schedule": [{"day": "tue", "time": "18:00", "duration_min": 75},
+                      {"day": "thu", "time": "18:00", "duration_min": 75}]},
+        {"name": "Advanced Weekend", "level": "Advanced", "coach": "Academy Admin",
+         "student_ids": by_level.get("Advanced", []),
+         "schedule": [{"day": "sat", "time": "10:00", "duration_min": 90},
+                      {"day": "sun", "time": "10:00", "duration_min": 90}]},
+    ]
+    for p in presets:
+        await db.batches.insert_one({
+            "_id": str(uuid.uuid4()), **p, "notes": "",
+            "created_at": iso(now_utc()),
+        })
+    logger.info("Batches seeded")
+
+
+DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+def today_day_key() -> str:
+    return DAY_KEYS[date.today().weekday()]
+
+
+@api.get("/batches")
+async def list_batches(user: dict = Depends(require_roles("admin", "staff"))):
+    docs = await db.batches.find().sort("name", 1).to_list(200)
+    return [clean(d) for d in docs]
+
+@api.post("/batches")
+async def create_batch(body: BatchIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = {"_id": str(uuid.uuid4()), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.batches.insert_one(doc)
+    return clean(doc)
+
+@api.get("/batches/{bid}")
+async def get_batch(bid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = await db.batches.find_one({"_id": bid})
+    if not doc:
+        raise HTTPException(404, "Not found")
+    return clean(doc)
+
+@api.patch("/batches/{bid}")
+async def update_batch(bid: str, body: BatchUpdate, user: dict = Depends(require_roles("admin", "staff"))):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        await db.batches.update_one({"_id": bid}, {"$set": updates})
+    doc = await db.batches.find_one({"_id": bid})
+    if not doc:
+        raise HTTPException(404, "Not found")
+    return clean(doc)
+
+@api.delete("/batches/{bid}")
+async def delete_batch(bid: str, user: dict = Depends(require_roles("admin"))):
+    await db.batches.delete_one({"_id": bid})
+    return {"ok": True}
+
+@api.get("/batches/{bid}/attendance")
+async def get_batch_attendance(bid: str, target_date: str, user: dict = Depends(require_roles("admin", "staff"))):
+    """Return attendance state for each student in the batch for a specific date. Missing records default to 'present'."""
+    batch = await db.batches.find_one({"_id": bid})
+    if not batch:
+        raise HTTPException(404, "Batch not found")
+    records = await db.attendance.find({
+        "student_id": {"$in": batch.get("student_ids", [])},
+        "date": target_date,
+    }).to_list(500)
+    by_student = {r["student_id"]: r for r in records}
+    result = []
+    for sid in batch.get("student_ids", []):
+        rec = by_student.get(sid)
+        result.append({
+            "student_id": sid,
+            "status": rec["status"] if rec else None,  # null means not yet marked
+            "topic": rec["topic"] if rec else "",
+        })
+    return {"batch_id": bid, "date": target_date, "records": result}
+
+@api.post("/batches/{bid}/attendance")
+async def take_batch_attendance(bid: str, body: TakeAttendanceIn, user: dict = Depends(require_roles("admin", "staff"))):
+    """Marks all students in the batch as 'present' by default, except those listed in absent_ids or late_ids."""
+    batch = await db.batches.find_one({"_id": bid})
+    if not batch:
+        raise HTTPException(404, "Batch not found")
+    absent = set(body.absent_ids)
+    late = set(body.late_ids)
+    student_ids = batch.get("student_ids", [])
+    saved = 0
+    for sid in student_ids:
+        if sid in absent:
+            status = "absent"
+        elif sid in late:
+            status = "late"
+        else:
+            status = "present"
+        existing = await db.attendance.find_one({"student_id": sid, "date": body.date})
+        if existing:
+            await db.attendance.update_one({"_id": existing["_id"]},
+                                           {"$set": {"status": status, "topic": body.topic, "batch_id": bid}})
+        else:
+            await db.attendance.insert_one({
+                "_id": str(uuid.uuid4()), "student_id": sid,
+                "date": body.date, "status": status,
+                "topic": body.topic, "batch_id": bid,
+                "created_at": iso(now_utc()),
+            })
+        saved += 1
+    return {"ok": True, "count": saved, "date": body.date}
+
+@api.get("/schedule/today")
+async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
+    """Return batches that have a session today, with student count."""
+    key = today_day_key()
+    batches = await db.batches.find().to_list(200)
+    out = []
+    for b in batches:
+        for slot in b.get("schedule", []):
+            if slot.get("day") == key:
+                out.append({
+                    "id": b["_id"], "name": b["name"], "level": b.get("level", ""),
+                    "time": slot.get("time", ""), "duration_min": slot.get("duration_min", 60),
+                    "student_count": len(b.get("student_ids", [])),
+                    "coach": b.get("coach", ""),
+                })
+    out.sort(key=lambda x: x["time"])
+    return out
     students = await db.students.find().to_list(200)
     leads = await db.leads.find().to_list(200)
     today = date.today()

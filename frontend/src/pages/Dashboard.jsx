@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle, Cake } from "lucide-react";
+import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle, Cake, CalendarDays, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const SEVERITY = {
@@ -21,14 +21,18 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [stats, setStats] = useState(null);
+  const [todayClasses, setTodayClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, s] = await Promise.all([api.get("/alerts"), api.get("/stats")]);
+        const [a, s, t] = await Promise.all([
+          api.get("/alerts"), api.get("/stats"), api.get("/schedule/today")
+        ]);
         setAlerts(a.data);
         setStats(s.data);
+        setTodayClasses(t.data);
       } finally { setLoading(false); }
     };
     load();
@@ -41,6 +45,43 @@ export default function Dashboard() {
         <h1 className="text-4xl md:text-5xl font-serif">Good day, {user.name.split(" ")[0]}.</h1>
         <p className="text-sm text-muted-foreground mt-1">Here's what needs your attention today.</p>
       </div>
+
+      {/* Today's Classes */}
+      <section className="mb-8" data-testid="today-classes-section">
+        <div className="flex items-center justify-between mb-3">
+          <div className="label-over">Today's classes ({todayClasses.length})</div>
+          <Link to="/classes" className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
+            All batches →
+          </Link>
+        </div>
+        {todayClasses.length === 0 ? (
+          <div className="border border-border/60 p-4 text-sm text-muted-foreground bg-white">
+            No classes scheduled today. Enjoy the break.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {todayClasses.map((c) => (
+              <Link key={c.id} to={`/classes/${c.id}`} data-testid={`today-class-${c.id}`}
+                className="flex items-center gap-3 p-4 bg-white border border-border/60 hover:border-primary transition-colors group">
+                <div className="w-12 h-12 bg-primary text-primary-foreground flex flex-col items-center justify-center shrink-0">
+                  <div className="text-[9px] uppercase tracking-widest opacity-70 leading-none">Class</div>
+                  <CalendarDays className="w-4 h-4 mt-0.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{c.name}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-3 mt-0.5">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{c.time} · {c.duration_min}m</span>
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.student_count}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
+                  Take →
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Alerts */}
       <section className="mb-8" data-testid="alerts-section">
