@@ -256,11 +256,12 @@ async def seed_admin():
 async def seed_demo_data():
     if await db.students.count_documents({}) > 0:
         return
-    await db.users.insert_one({
-        "_id": str(uuid.uuid4()), "email": "staff@thechesslifestyle.com",
-        "password_hash": hash_password("staff123"), "name": "Priya Sharma",
-        "role": "staff", "created_at": iso(now_utc()),
-    })
+    if not await db.users.find_one({"email": "staff@thechesslifestyle.com"}):
+        await db.users.insert_one({
+            "_id": str(uuid.uuid4()), "email": "staff@thechesslifestyle.com",
+            "password_hash": hash_password("staff123"), "name": "Priya Sharma",
+            "role": "staff", "created_at": iso(now_utc()),
+        })
 
     students_data = [
         {"name": "Aarav Mehta", "phone": "+91-98765-11111", "parent_name": "Rohit Mehta", "parent_phone": "+91-98765-22222", "level": "Intermediate", "monthly_fee": 3000, "dob_offset_days": 3, "age": 12},
@@ -290,12 +291,13 @@ async def seed_demo_data():
             "created_at": iso(now_utc()),
         })
 
-    await db.users.insert_one({
-        "_id": str(uuid.uuid4()), "email": "aarav@student.com",
-        "password_hash": hash_password("student123"), "name": "Aarav Mehta",
-        "role": "student", "linked_student_id": student_ids[0],
-        "created_at": iso(now_utc()),
-    })
+    if not await db.users.find_one({"email": "aarav@student.com"}):
+        await db.users.insert_one({
+            "_id": str(uuid.uuid4()), "email": "aarav@student.com",
+            "password_hash": hash_password("student123"), "name": "Aarav Mehta",
+            "role": "student", "linked_student_id": student_ids[0],
+            "created_at": iso(now_utc()),
+        })
 
     today = date.today()
     for sid in student_ids:
