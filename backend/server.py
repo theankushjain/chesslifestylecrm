@@ -821,36 +821,14 @@ async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
 
 @api.post("/chat")
 async def chat(body: ChatIn, user: dict = Depends(require_roles("admin", "staff"))):
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-
     session_id = body.session_id or str(uuid.uuid4())
-    context = await build_context()
-
-    system_msg = (
-        "You are the AI assistant for 'The Chess Lifestyle' chess academy CRM. "
-        "You have access to student, lead, and payment data below. Answer the user's questions "
-        "precisely using this data. If asked about a specific person, give exact details. "
-        "For counts and lists, be specific with names. Keep answers concise. "
-        "If the answer isn't in the data, say so.\n\n" + context
-    )
-
-    llm = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=system_msg,
-    ).with_model("gemini", "gemini-2.5-flash")
-
+    
     await db.chat_messages.insert_one({
         "_id": str(uuid.uuid4()), "session_id": session_id, "user_id": user["_id"],
         "role": "user", "content": body.message, "created_at": iso(now_utc())
     })
-
-    try:
-        response = await llm.send_message(UserMessage(text=body.message))
-        reply = str(response)
-    except Exception as e:
-        logger.exception("LLM error")
-        raise HTTPException(500, f"AI error: {str(e)}")
+    
+    reply = "AI Chat is temporarily disabled. Please contact support to re-enable it."
 
     await db.chat_messages.insert_one({
         "_id": str(uuid.uuid4()), "session_id": session_id, "user_id": user["_id"],
