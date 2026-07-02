@@ -270,6 +270,7 @@ async def seed_demo_data():
         {"name": "Aanya Iyer", "phone": "+91-98765-11115", "parent_name": "Meera Iyer", "parent_phone": "+91-98765-22226", "level": "Advanced", "monthly_fee": 4500, "dob_offset_days": 120, "age": 13},
         {"name": "Vihaan Singh", "phone": "+91-98765-11116", "parent_name": "Karan Singh", "parent_phone": "+91-98765-22227", "level": "Beginner", "monthly_fee": 2500, "dob_offset_days": 200, "age": 10},
     ]
+    today = date.today()
     student_ids = []
     for s in students_data:
         sid = str(uuid.uuid4())
