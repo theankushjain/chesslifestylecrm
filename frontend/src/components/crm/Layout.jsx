@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Users, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Users, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin", "staff"] },
   { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin", "staff"] },
+  { to: "/tally", label: "Tally", icon: TrendingUp, testid: "nav-tally", roles: ["admin"] },
   { to: "/chat", label: "AI", icon: MessageSquare, testid: "nav-chat", roles: ["admin", "staff"] },
   { to: "/portal", label: "My Portal", icon: User, testid: "nav-portal", roles: ["student"] },
 ];

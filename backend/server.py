@@ -202,6 +202,14 @@ class TakeAttendanceIn(BaseModel):
     absent_ids: List[str] = []
     late_ids: List[str] = []
 
+class TransactionIn(BaseModel):
+    type: str
+    category: str
+    amount: float
+    description: str = ""
+    date: str
+    investor: Optional[str] = None
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -839,6 +847,80 @@ async def chat(body: ChatIn, user: dict = Depends(require_roles("admin", "staff"
     })
 
     return {"reply": reply, "session_id": session_id}
+
+@api.get("/transactions")
+async def list_transactions(user: dict = Depends(require_roles("admin", "staff"))):
+    docs = await db.transactions.find().sort("date", -1).to_list(1000)
+    return [clean(d) for d in docs]
+
+@api.post("/transactions")
+async def create_transaction(body: TransactionIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = {
+        "_id": str(uuid.uuid4()),
+        **body.model_dump(),
+        "created_at": iso(now_utc())
+    }
+    await db.transactions.insert_one(doc)
+    return clean(doc)
+
+@api.delete("/transactions/{tid}")
+async def delete_transaction(tid: str, user: dict = Depends(require_roles("admin"))):
+    await db.transactions.delete_one({"_id": tid})
+    return {"ok": True}
+
+@api.get("/tally/summary")
+async def tally_summary(year: Optional[int] = None, user: dict = Depends(require_roles("admin", "staff"))):
+    y = year or date.today().year
+    payments = await db.payments.find({"status": "paid", "year": y}).to_list(None)
+    payment_revenue = sum(p.get("amount", 0) for p in payments)
+    
+    # We load all transactions for the year for P&L, but we load ALL transactions for founder balances
+    tx_docs_all = await db.transactions.find().to_list(None)
+    tx_docs_year = [t for t in tx_docs_all if t.get("date", "").startswith(f"{y}-")]
+    
+    manual_income = sum(t.get("amount", 0) for t in tx_docs_year if t.get("type") == "income")
+    total_expense = sum(t.get("amount", 0) for t in tx_docs_year if t.get("type") == "expense")
+    
+    total_income = payment_revenue + manual_income
+    net_profit = total_income - total_expense
+    
+    # Calculate founder balances from ALL transactions
+    founder_balances = {}
+    for t in tx_docs_all:
+        inv = t.get("investor")
+        if inv:
+            if inv not in founder_balances:
+                founder_balances[inv] = {"invested": 0, "repaid": 0, "pending": 0}
+            if t.get("category") == "Investment" and t.get("type") == "income":
+                founder_balances[inv]["invested"] += t.get("amount", 0)
+            elif t.get("category") == "Repayment" and t.get("type") == "expense":
+                founder_balances[inv]["repaid"] += t.get("amount", 0)
+                
+    for f in founder_balances:
+        founder_balances[f]["pending"] = founder_balances[f]["invested"] - founder_balances[f]["repaid"]
+    
+    monthly_data = []
+    for month in range(1, 13):
+        m_payments = sum(p.get("amount", 0) for p in payments if p.get("month") == month)
+        m_str = f"{y}-{month:02d}"
+        m_tx = [t for t in tx_docs_year if t.get("date", "").startswith(m_str)]
+        m_inc = sum(t.get("amount", 0) for t in m_tx if t.get("type") == "income")
+        m_exp = sum(t.get("amount", 0) for t in m_tx if t.get("type") == "expense")
+        monthly_data.append({
+            "month": month,
+            "income": m_payments + m_inc,
+            "expense": m_exp,
+            "profit": (m_payments + m_inc) - m_exp
+        })
+        
+    return {
+        "year": y,
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "net_profit": net_profit,
+        "monthly_data": monthly_data,
+        "founder_balances": founder_balances
+    }
 
 
 app.include_router(api)
