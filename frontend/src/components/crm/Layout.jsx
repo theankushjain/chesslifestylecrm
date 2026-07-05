@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin", "staff"] },
@@ -20,6 +21,10 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const items = NAV.filter((n) => n.roles.includes(user.role));
+  
+  const MAX_VISIBLE = 4;
+  const visibleItems = items.length > MAX_VISIBLE ? items.slice(0, 3) : items;
+  const hiddenItems = items.length > MAX_VISIBLE ? items.slice(3) : [];
 
   const handleLogout = async () => {
     await logout();
@@ -81,17 +86,17 @@ export default function Layout() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-nav border-t border-border/40 z-40">
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
-          {items.map((n) => (
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-nav border-t border-border/40 z-40 pb-safe">
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${visibleItems.length + (hiddenItems.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}>
+          {visibleItems.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               end={n.to === "/"}
               data-testid={`${n.testid}-mobile`}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-2.5 text-[10px] uppercase tracking-widest transition-colors ${
-                  isActive ? "text-foreground" : "text-muted-foreground"
+                `flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] uppercase tracking-widest transition-colors ${
+                  isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`
               }
             >
@@ -103,6 +108,39 @@ export default function Layout() {
               )}
             </NavLink>
           ))}
+          {hiddenItems.length > 0 && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] uppercase tracking-widest transition-colors text-muted-foreground hover:text-foreground">
+                  <Menu className="w-5 h-5 opacity-70" />
+                  <span>More</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="p-0 border-t rounded-t-xl overflow-hidden h-[50vh] flex flex-col">
+                <div className="p-4 border-b border-border/40">
+                  <h2 className="font-serif font-semibold text-lg">More Menu</h2>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 grid gap-1">
+                  {hiddenItems.map((n) => (
+                    <SheetTrigger key={n.to} asChild>
+                      <NavLink
+                        to={n.to}
+                        end={n.to === "/"}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                            isActive ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground"
+                          }`
+                        }
+                      >
+                        <n.icon className="w-5 h-5" />
+                        <span className="text-sm font-medium">{n.label}</span>
+                      </NavLink>
+                    </SheetTrigger>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       </nav>
     </div>
