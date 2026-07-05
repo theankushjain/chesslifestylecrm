@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCog } from "lucide-react";
+import { UserCog, Trash2, Edit2, Check, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Users() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,6 +21,9 @@ export default function Users() {
     password: "",
     role: "staff",
   });
+
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     loadUsers();
@@ -47,10 +52,33 @@ export default function Users() {
     }
   };
 
-  const handleRoleChange = async (uid, newRole) => {
+  const startEdit = (u) => {
+    setEditingId(u._id);
+    setEditForm({ name: u.name, email: u.email, role: u.role, password: "" });
+  };
+
+  const handleSaveEdit = async (uid) => {
     try {
-      await api.patch(`/users/${uid}`, { role: newRole });
-      toast.success("Role updated");
+      const payload = { ...editForm };
+      if (!payload.password) delete payload.password;
+      await api.patch(`/users/${uid}`, payload);
+      toast.success("User updated");
+      setEditingId(null);
+      loadUsers();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    }
+  };
+
+  const handleDelete = async (uid) => {
+    if (uid === currentUser._id) {
+      toast.error("You cannot delete yourself.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await api.delete(`/users/${uid}`);
+      toast.success("User deleted");
       loadUsers();
     } catch (err) {
       toast.error(formatApiError(err));
@@ -60,7 +88,7 @@ export default function Users() {
   if (loading) return <div className="p-8">Loading...</div>;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in">
+    <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in">
       <div className="flex items-center gap-3">
         <div className="p-3 bg-primary/10 text-primary rounded-xl">
           <UserCog className="w-6 h-6" />
@@ -118,24 +146,58 @@ export default function Users() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((u) => (
                   <TableRow key={u._id}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
-                    <TableCell>{u.email}</TableCell>
+                    <TableCell className="font-medium">
+                      {editingId === u._id ? (
+                        <Input className="h-8" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
+                      ) : u.name}
+                    </TableCell>
                     <TableCell>
-                      <Select value={u.role} onValueChange={(v) => handleRoleChange(u._id, v)}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="staff">Staff</SelectItem>
-                          <SelectItem value="student">Student</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {editingId === u._id ? (
+                        <Input className="h-8" type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
+                      ) : u.email}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === u._id ? (
+                        <Select value={editForm.role} onValueChange={(v) => setEditForm({...editForm, role: v})}>
+                          <SelectTrigger className="h-8 text-xs w-[110px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="student">Student</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="uppercase text-xs tracking-wider font-semibold text-muted-foreground">{u.role}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {editingId === u._id ? (
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => handleSaveEdit(u._id)}>
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => startEdit(u)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(u._id)} disabled={u._id === currentUser._id}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -227,7 +227,10 @@ class UserIn(BaseModel):
     linked_student_id: Optional[str] = None
 
 class UserUpdate(BaseModel):
-    role: str
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
 
 class TaskIn(BaseModel):
     title: str
@@ -892,11 +895,23 @@ async def create_user(body: UserIn, user: dict = Depends(require_roles("admin"))
 
 @api.patch("/users/{uid}")
 async def update_user(uid: str, body: UserUpdate, user: dict = Depends(require_roles("admin"))):
-    if uid == user["_id"]:
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(400, "No fields to update")
+    if "role" in updates and uid == user["_id"] and updates["role"] != user["role"]:
         raise HTTPException(400, "Cannot change your own role")
-    await db.users.update_one({"_id": uid}, {"$set": {"role": body.role}})
+    if "password" in updates:
+        updates["password_hash"] = bcrypt.hashpw(updates.pop("password").encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"_id": uid}, {"$set": updates})
     doc = await db.users.find_one({"_id": uid}, {"password_hash": 0})
     return clean(doc)
+
+@api.delete("/users/{uid}")
+async def delete_user(uid: str, user: dict = Depends(require_roles("admin"))):
+    if uid == user["_id"]:
+        raise HTTPException(400, "Cannot delete yourself")
+    await db.users.delete_one({"_id": uid})
+    return {"status": "ok"}
 
 @api.get("/tasks")
 async def get_tasks(user: dict = Depends(get_current_user)):
