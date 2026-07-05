@@ -901,6 +901,9 @@ async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
 async def get_crm_context():
     students = await db.students.find().to_list(1000)
     leads = await db.leads.find().to_list(1000)
+    tasks = await db.tasks.find().to_list(1000)
+    batches = await db.batches.find().to_list(1000)
+    users = await db.users.find().to_list(1000)
     today = date.today()
     payments = await db.payments.find({"year": today.year, "month": today.month}).to_list(1000)
 
@@ -921,11 +924,31 @@ async def get_crm_context():
         name = s["name"] if s else "?"
         p_lines.append(f"- {name} | {p['month']}/{p['year']} | Rs.{p['amount']} | {p['status']}")
 
+    users_map = {u["_id"]: u["name"] for u in users}
+    batches_map = {b["_id"]: b["name"] for b in batches}
+    
+    t_lines = []
+    for t in tasks:
+        assignee = t.get("assignee")
+        if assignee == "all_staff":
+            assignee_name = "All Staff"
+        elif assignee == "all_students":
+            assignee_name = "All Students"
+        else:
+            assignee_name = users_map.get(assignee, batches_map.get(assignee, "Unknown"))
+        t_lines.append(f"- [{t.get('status','pending')}] {t.get('title','')} | Assigned to: {assignee_name} | Due: {t.get('due_date','')}")
+        
+    b_lines = []
+    for b in batches:
+        b_lines.append(f"- {b['name']} | Level: {b.get('level','')} | Coach: {b.get('coach','')}")
+
     return (
         f"CURRENT DATE: {today.isoformat()}\n\n"
         f"=== STUDENTS ({len(students)}) ===\n" + "\n".join(s_lines) + "\n\n"
         f"=== LEADS ({len(leads)}) ===\n" + "\n".join(l_lines) + "\n\n"
-        f"=== THIS MONTH PAYMENTS ({len(payments)}) ===\n" + "\n".join(p_lines)
+        f"=== THIS MONTH PAYMENTS ({len(payments)}) ===\n" + "\n".join(p_lines) + "\n\n"
+        f"=== TASKS ({len(tasks)}) ===\n" + "\n".join(t_lines) + "\n\n"
+        f"=== BATCHES ({len(batches)}) ===\n" + "\n".join(b_lines)
     )
 
 @api.get("/users")

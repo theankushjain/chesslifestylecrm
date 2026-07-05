@@ -50,7 +50,7 @@ function App() {
               <Route path="classes/:id" element={<Protected roles={["admin","staff"]}><BatchDetail /></Protected>} />
               <Route path="payments" element={<Protected roles={["admin","staff"]}><Payments /></Protected>} />
               <Route path="tally" element={<Protected roles={["admin"]}><Tally /></Protected>} />
-              <Route path="chat" element={<Protected roles={["admin","staff"]}><Chatbot /></Protected>} />
+              <Route path="chat" element={<Protected roles={["admin"]}><Chatbot /></Protected>} />
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
               <Route path="tasks" element={<Protected><Tasks /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />

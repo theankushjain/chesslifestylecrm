@@ -192,7 +192,7 @@ export default function Tally() {
               <CardTitle>Add Transaction</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-4 items-end">
+              <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
                 <div className="space-y-1.5 flex-1">
                   <Label>Type</Label>
                   <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
