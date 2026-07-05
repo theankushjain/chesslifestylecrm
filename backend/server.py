@@ -944,7 +944,10 @@ async def get_crm_context():
         
     b_lines = []
     for b in batches:
-        b_lines.append(f"- {b['name']} | Level: {b.get('level','')} | Coach: {b.get('coach','')}")
+        b_student_names = [students_map.get(sid, {}).get("name", "?") for sid in b.get("student_ids", [])]
+        schedules = [f"{s.get('day')} {s.get('time')} ({s.get('duration_min')}m)" for s in b.get("schedule", [])]
+        schedule_str = ", ".join(schedules) if schedules else "No schedule"
+        b_lines.append(f"- {b['name']} | Level: {b.get('level','')} | Coach: {b.get('coach','')} | Schedule: {schedule_str} | Students: {', '.join(b_student_names)}")
 
     return (
         f"CURRENT DATE: {today.isoformat()}\n\n"
