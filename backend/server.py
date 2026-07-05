@@ -219,6 +219,25 @@ class TransactionIn(BaseModel):
     date: str
     investor: Optional[str] = None
 
+class UserIn(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    role: str
+    linked_student_id: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    role: str
+
+class TaskIn(BaseModel):
+    title: str
+    description: str = ""
+    assignee: str
+    due_date: Optional[str] = None
+
+class TaskUpdate(BaseModel):
+    status: str
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -226,6 +245,12 @@ async def on_startup():
     await db.students.create_index("name")
     await db.leads.create_index("stage")
     await db.payments.create_index([("student_id", 1), ("year", 1), ("month", 1)], unique=True)
+    await db.payments.create_index([("year", 1), ("month", 1)])
+    await db.payments.create_index("status")
+    await db.transactions.create_index("date")
+    await db.transactions.create_index("type")
+    await db.tasks.create_index("assignee")
+    await db.tasks.create_index("status")
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
     await db.batches.create_index("name")
     await seed_admin()
@@ -840,6 +865,77 @@ async def get_crm_context():
         f"=== LEADS ({len(leads)}) ===\n" + "\n".join(l_lines) + "\n\n"
         f"=== THIS MONTH PAYMENTS ({len(payments)}) ===\n" + "\n".join(p_lines)
     )
+
+@api.get("/users")
+async def get_users(user: dict = Depends(require_roles("admin"))):
+    users = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    return [clean(u) for u in users]
+
+@api.post("/users")
+async def create_user(body: UserIn, user: dict = Depends(require_roles("admin"))):
+    existing = await db.users.find_one({"email": body.email})
+    if existing:
+        raise HTTPException(400, "Email already exists")
+    pwd_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "name": body.name,
+        "email": body.email,
+        "password_hash": pwd_hash,
+        "role": body.role,
+        "linked_student_id": body.linked_student_id,
+        "created_at": iso(now_utc())
+    }
+    await db.users.insert_one(doc)
+    doc.pop("password_hash", None)
+    return clean(doc)
+
+@api.patch("/users/{uid}")
+async def update_user(uid: str, body: UserUpdate, user: dict = Depends(require_roles("admin"))):
+    if uid == user["_id"]:
+        raise HTTPException(400, "Cannot change your own role")
+    await db.users.update_one({"_id": uid}, {"$set": {"role": body.role}})
+    doc = await db.users.find_one({"_id": uid}, {"password_hash": 0})
+    return clean(doc)
+
+@api.get("/tasks")
+async def get_tasks(user: dict = Depends(get_current_user)):
+    if user["role"] == "admin":
+        tasks = await db.tasks.find().sort("created_at", -1).to_list(1000)
+    else:
+        queries = [{"assignee": user["_id"]}]
+        if user["role"] == "staff":
+            queries.append({"assignee": "all_staff"})
+        elif user["role"] == "student":
+            queries.append({"assignee": "all_students"})
+            if user.get("linked_student_id"):
+                queries.append({"assignee": user["linked_student_id"]})
+                s = await db.students.find_one({"_id": user["linked_student_id"]})
+                if s and s.get("batch_id"):
+                    queries.append({"assignee": s["batch_id"]})
+        tasks = await db.tasks.find({"$or": queries}).sort("created_at", -1).to_list(1000)
+    return [clean(t) for t in tasks]
+
+@api.post("/tasks")
+async def create_task(body: TaskIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "title": body.title,
+        "description": body.description,
+        "assignee": body.assignee,
+        "due_date": body.due_date,
+        "status": "pending",
+        "created_by": user["_id"],
+        "created_at": iso(now_utc())
+    }
+    await db.tasks.insert_one(doc)
+    return clean(doc)
+
+@api.patch("/tasks/{tid}")
+async def update_task_status(tid: str, body: TaskUpdate, user: dict = Depends(get_current_user)):
+    await db.tasks.update_one({"_id": tid}, {"$set": {"status": body.status}})
+    doc = await db.tasks.find_one({"_id": tid})
+    return clean(doc)
 
 @api.post("/chat")
 async def chat(body: ChatIn, user: dict = Depends(require_roles("admin", "staff"))):

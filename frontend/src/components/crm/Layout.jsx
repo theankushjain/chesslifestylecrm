@@ -1,15 +1,17 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Users, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin", "staff"] },
-  { to: "/students", label: "Students", icon: Users, testid: "nav-students", roles: ["admin", "staff"] },
+  { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin", "staff"] },
   { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin", "staff"] },
   { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin", "staff"] },
+  { to: "/tasks", label: "To-Do", icon: CheckSquare, testid: "nav-tasks", roles: ["admin", "staff", "student"] },
   { to: "/tally", label: "Tally", icon: TrendingUp, testid: "nav-tally", roles: ["admin"] },
+  { to: "/users", label: "Users", icon: UserCog, testid: "nav-users", roles: ["admin"] },
   { to: "/chat", label: "AI", icon: MessageSquare, testid: "nav-chat", roles: ["admin", "staff"] },
   { to: "/portal", label: "My Portal", icon: User, testid: "nav-portal", roles: ["student"] },
 ];
