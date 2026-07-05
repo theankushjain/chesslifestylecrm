@@ -1123,9 +1123,9 @@ async def tally_summary(year: Optional[int] = None, user: dict = Depends(require
         if inv:
             if inv not in founder_balances:
                 founder_balances[inv] = {"invested": 0, "repaid": 0, "pending": 0}
-            if t.get("category") == "Investment" and t.get("type") == "income":
+            if t.get("category") == "Investment":
                 founder_balances[inv]["invested"] += t.get("amount", 0)
-            elif t.get("category") == "Repayment" and t.get("type") == "expense":
+            elif t.get("category") == "Repayment":
                 founder_balances[inv]["repaid"] += t.get("amount", 0)
                 
     for f in founder_balances:
