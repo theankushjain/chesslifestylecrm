@@ -236,8 +236,12 @@ class UserIn(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     role: Optional[str] = None
+    linked_student_id: Optional[str] = None
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
     password: Optional[str] = None
 
 class TaskIn(BaseModel):
@@ -434,6 +438,19 @@ async def logout(response: Response):
 @api.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
     return clean(user)
+
+@api.patch("/auth/me")
+async def update_my_profile(body: ProfileUpdate, user: dict = Depends(get_current_user)):
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        return clean(user)
+        
+    if "password" in updates:
+        updates["password_hash"] = bcrypt.hashpw(updates.pop("password").encode(), bcrypt.gensalt()).decode()
+        
+    await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
+    updated_user = await db.users.find_one({"_id": user["_id"]})
+    return clean(updated_user)
 
 
 @api.get("/students")

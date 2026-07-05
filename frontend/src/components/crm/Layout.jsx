@@ -60,7 +60,12 @@ export default function Layout() {
         <div className="p-3 border-t border-border/60">
           <div className="px-3 pb-3">
             <div className="text-xs text-muted-foreground">Signed in as</div>
-            <div className="text-sm font-medium truncate">{user.name}</div>
+            <div className="text-sm font-medium truncate flex items-center justify-between">
+              {user.name}
+              <NavLink to="/profile" className="text-muted-foreground hover:text-primary transition-colors" title="My Profile">
+                <UserCog className="w-4 h-4" />
+              </NavLink>
+            </div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mt-0.5">{user.role}</div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="logout-btn" className="w-full justify-start">
@@ -75,9 +80,14 @@ export default function Layout() {
           <div className="label-over" style={{ fontSize: "0.6rem" }}>The Chess Lifestyle</div>
           <h1 className="text-xl font-serif font-semibold leading-none -mt-0.5">CRM</h1>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="logout-btn-mobile">
-          <LogOut className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <NavLink to="/profile" className="p-2 text-muted-foreground hover:text-foreground">
+            <UserCog className="w-5 h-5" />
+          </NavLink>
+          <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="logout-btn-mobile">
+            <LogOut className="w-5 h-5" />
+          </Button>
+        </div>
       </header>
 
       {/* Main content */}

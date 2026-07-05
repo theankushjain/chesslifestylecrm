@@ -17,6 +17,7 @@ import BatchDetail from "@/pages/BatchDetail";
 import Tally from "@/pages/Tally";
 import Users from "@/pages/Users";
 import Tasks from "@/pages/Tasks";
+import Profile from "@/pages/Profile";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -54,6 +55,7 @@ function App() {
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
               <Route path="tasks" element={<Protected><Tasks /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />
+              <Route path="profile" element={<Protected><Profile /></Protected>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
