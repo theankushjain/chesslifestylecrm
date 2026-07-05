@@ -85,7 +85,12 @@ export default function StudentDetail() {
             {student.name[0]}
           </div>
           <div className="flex-1">
-            <div className="label-over">{student.level}</div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="label-over !mb-0">{student.level}</div>
+              {student.tags?.map((t, i) => (
+                <span key={i} className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded">{t}</span>
+              ))}
+            </div>
             <h1 className="text-3xl font-serif" data-testid="student-name">{student.name}</h1>
             <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
               <div>{student.phone || "no phone"}</div>
@@ -236,14 +241,19 @@ function StudentEditDialog({ student, onSaved }) {
     name: student.name, phone: student.phone || "", parent_name: student.parent_name || "",
     parent_phone: student.parent_phone || "", level: student.level || "Beginner",
     monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
-    dob: student.dob || "",
+    dob: student.dob || "", tags: student.tags || []
   });
+  const [tagsStr, setTagsStr] = useState((student.tags || []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     try {
-      await api.patch(`/students/${student.id}`, form);
+      const payload = {
+        ...form,
+        tags: tagsStr.split(",").map(t => t.trim()).filter(Boolean)
+      };
+      await api.patch(`/students/${student.id}`, payload);
       toast.success("Student updated");
       onSaved();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -306,6 +316,10 @@ function StudentEditDialog({ student, onSaved }) {
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
           <Input type="date" data-testid="student-edit-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-none" />
         </div>
       </div>
       <DialogFooter>

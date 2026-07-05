@@ -123,6 +123,7 @@ class StudentIn(BaseModel):
     notes: str = ""
     status: str = "active"
     dob: Optional[str] = None  # YYYY-MM-DD
+    tags: list[str] = []
 
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
@@ -135,6 +136,7 @@ class StudentUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     dob: Optional[str] = None
+    tags: Optional[list[str]] = None
 
 class LeadIn(BaseModel):
     name: str
@@ -144,6 +146,7 @@ class LeadIn(BaseModel):
     stage: str = "new"
     notes: str = ""
     next_follow_up: Optional[str] = None
+    tags: list[str] = []
 
 class LeadUpdate(BaseModel):
     name: Optional[str] = None
@@ -153,6 +156,7 @@ class LeadUpdate(BaseModel):
     stage: Optional[str] = None
     notes: Optional[str] = None
     next_follow_up: Optional[str] = None
+    tags: Optional[list[str]] = None
 
 class CallLogIn(BaseModel):
     outcome: str

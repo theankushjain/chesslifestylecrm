@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, X, Trash2, CheckCircle2, XCircle, Clock, Users, Save } from "lucide-react";
+import { ArrowLeft, Plus, X, Trash2, CheckCircle2, XCircle, Clock, Users, Save, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { DAYS } from "./Classes";
@@ -22,6 +23,7 @@ export default function BatchDetail() {
   const [attendanceState, setAttendanceState] = useState({}); // {student_id: 'present'|'absent'|'late'}
   const [topic, setTopic] = useState("");
   const [savingAttendance, setSavingAttendance] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const canDelete = user.role === "admin";
 
@@ -143,12 +145,20 @@ export default function BatchDetail() {
             <h1 className="text-3xl font-serif" data-testid="batch-name">{batch.name}</h1>
             {batch.coach && <div className="text-sm text-muted-foreground mt-1">Coach: {batch.coach}</div>}
           </div>
-          {canDelete && (
-            <button onClick={() => setDeleteOpen(true)} data-testid="batch-delete-btn"
-              className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex flex-col gap-2">
+            {(user.role === "admin" || user.role === "staff") && (
+              <button onClick={() => setEditOpen(true)} data-testid="batch-edit-btn"
+                className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => setDeleteOpen(true)} data-testid="batch-delete-btn"
+                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -298,6 +308,11 @@ export default function BatchDetail() {
         )}
       </section>
 
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <BatchEditDialog batch={batch} onSaved={() => { setEditOpen(false); load(); }} />
+      </Dialog>
+
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent className="rounded-none">
           <AlertDialogHeader>
@@ -316,5 +331,54 @@ export default function BatchDetail() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function BatchEditDialog({ batch, onSaved }) {
+  const [form, setForm] = useState({ name: batch.name, level: batch.level, coach: batch.coach || "", notes: batch.notes || "" });
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/batches/${batch.id}`, form);
+      toast.success("Batch updated");
+      onSaved();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setSaving(false); }
+  };
+  return (
+    <DialogContent className="rounded-none max-w-lg">
+      <DialogHeader><DialogTitle className="font-serif text-2xl">Edit batch</DialogTitle></DialogHeader>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Batch name</Label>
+          <Input data-testid="batch-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Level</Label>
+            <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
+              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["Beginner", "Intermediate", "Advanced"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Coach</Label>
+            <Input value={form.coach} onChange={(e) => setForm({ ...form, coach: e.target.value })} className="rounded-none" />
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Notes</Label>
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={2} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={save} disabled={saving || !form.name} data-testid="batch-edit-save" className="rounded-none">
+          {saving ? "Saving..." : "Save changes"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }

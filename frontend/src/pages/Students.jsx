@@ -69,7 +69,19 @@ export default function Students() {
                   {s.name[0]}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{s.name}</div>
+                  <div className="font-medium flex items-center gap-2 truncate">
+                    {s.name}
+                    {s.tags?.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        {s.tags.slice(0, 2).map((t, i) => (
+                          <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">
+                            {t}
+                          </span>
+                        ))}
+                        {s.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{s.tags.length - 2}</span>}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground truncate">
                     {s.level} · {s.phone || "no phone"}
                   </div>
@@ -108,18 +120,23 @@ export default function Students() {
 function StudentDialog({ onSaved, student }) {
   const [form, setForm] = useState(student || {
     name: "", phone: "", parent_name: "", parent_phone: "",
-    level: "Beginner", monthly_fee: 2500, notes: "", status: "active", dob: ""
+    level: "Beginner", monthly_fee: 2500, notes: "", status: "active", dob: "", tags: []
   });
+  const [tagsStr, setTagsStr] = useState((student?.tags || []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     try {
+      const payload = { 
+        ...form, 
+        tags: tagsStr.split(",").map(t => t.trim()).filter(Boolean) 
+      };
       if (student) {
-        await api.patch(`/students/${student.id}`, form);
+        await api.patch(`/students/${student.id}`, payload);
         toast.success("Student updated");
       } else {
-        await api.post("/students", form);
+        await api.post("/students", payload);
         toast.success("Student added");
       }
       onSaved();
@@ -167,6 +184,10 @@ function StudentDialog({ onSaved, student }) {
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
           <Input type="date" data-testid="student-form-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-none" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>

@@ -84,6 +84,14 @@ export default function Leads() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="font-medium">{l.name}</div>
                     <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${stage?.color}`}>{stage?.label}</span>
+                    {l.tags?.length > 0 && (
+                      <>
+                        {l.tags.slice(0, 2).map((t, i) => (
+                          <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">{t}</span>
+                        ))}
+                        {l.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{l.tags.length - 2}</span>}
+                      </>
+                    )}
                     {followUpOverdue && (
                       <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-destructive text-destructive-foreground">Follow-up</span>
                     )}
@@ -134,12 +142,17 @@ const FilterChip = ({ active, onClick, children, testid }) => (
 );
 
 function LeadDialog({ onSaved }) {
-  const [form, setForm] = useState({ name: "", phone: "", email: "", source: "Website", stage: "new", notes: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", source: "Website", stage: "new", notes: "", tags: [] });
+  const [tagsStr, setTagsStr] = useState("");
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
     try {
-      await api.post("/leads", form);
+      const payload = { 
+        ...form, 
+        tags: tagsStr.split(",").map(t => t.trim()).filter(Boolean) 
+      };
+      await api.post("/leads", payload);
       toast.success("Lead added");
       onSaved();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -167,6 +180,10 @@ function LeadDialog({ onSaved }) {
               </SelectContent>
             </Select>
           </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-none" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>

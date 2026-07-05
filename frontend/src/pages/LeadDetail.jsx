@@ -77,7 +77,12 @@ export default function LeadDetail() {
       <div className="bg-white border border-border/60 p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="label-over">Lead</div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="label-over !mb-0">Lead</div>
+              {lead.tags?.map((t, i) => (
+                <span key={i} className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded">{t}</span>
+              ))}
+            </div>
             <h1 className="text-3xl font-serif" data-testid="lead-name">{lead.name}</h1>
             <div className="text-sm text-muted-foreground mt-2">
               {lead.phone || "no phone"} · Source: {lead.source}
@@ -216,8 +221,9 @@ function LeadEditDialog({ lead, onSaved }) {
   const [form, setForm] = useState({
     name: lead.name, phone: lead.phone || "", email: lead.email || "",
     source: lead.source || "Website", notes: lead.notes || "",
-    next_follow_up: lead.next_follow_up || "",
+    next_follow_up: lead.next_follow_up || "", tags: lead.tags || []
   });
+  const [tagsStr, setTagsStr] = useState((lead.tags || []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -226,6 +232,7 @@ function LeadEditDialog({ lead, onSaved }) {
       await api.patch(`/leads/${lead.id}`, {
         ...form,
         next_follow_up: form.next_follow_up || null,
+        tags: tagsStr.split(",").map(t => t.trim()).filter(Boolean)
       });
       toast.success("Lead updated");
       onSaved();
@@ -263,6 +270,10 @@ function LeadEditDialog({ lead, onSaved }) {
         <div>
           <Label className="text-xs uppercase tracking-widest">Next follow-up</Label>
           <Input type="date" data-testid="lead-edit-followup" value={form.next_follow_up || ""} onChange={(e) => setForm({ ...form, next_follow_up: e.target.value })} className="rounded-none" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-none" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
