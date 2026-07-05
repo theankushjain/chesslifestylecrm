@@ -67,8 +67,8 @@ export default function Tasks() {
   const toggleStatus = async (task) => {
     const newStatus = task.status === "completed" ? "pending" : "completed";
     try {
-      await api.patch(`/tasks/${task._id}`, { status: newStatus });
-      setTasks(tasks.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
+      await api.patch(`/tasks/${task.id}`, { status: newStatus });
+      setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     } catch (err) {
       toast.error(formatApiError(err));
     }
@@ -77,11 +77,11 @@ export default function Tasks() {
   const getAssigneeLabel = (assigneeId) => {
     if (assigneeId === "all_staff") return "All Staff";
     if (assigneeId === "all_students") return "All Students";
-    const u = users.find(x => x._id === assigneeId);
+    const u = users.find(x => x.id === assigneeId);
     if (u) return u.name;
-    const s = students.find(x => x._id === assigneeId);
+    const s = students.find(x => x.id === assigneeId);
     if (s) return s.name;
-    const b = batches.find(x => x._id === assigneeId);
+    const b = batches.find(x => x.id === assigneeId);
     if (b) return `Batch: ${b.name}`;
     return "Unknown";
   };
@@ -130,19 +130,19 @@ export default function Tasks() {
                         {batches.length > 0 && (
                           <SelectGroup>
                             <SelectLabel>Batches</SelectLabel>
-                            {batches.map(b => <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>)}
+                            {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                           </SelectGroup>
                         )}
                         {users.filter(u => u.role !== 'student').length > 0 && (
                           <SelectGroup>
                             <SelectLabel>Staff Members</SelectLabel>
-                            {users.filter(u => u.role !== 'student').map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}
+                            {users.filter(u => u.role !== 'student').map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                           </SelectGroup>
                         )}
                         {students.length > 0 && (
                           <SelectGroup>
                             <SelectLabel>Individual Students</SelectLabel>
-                            {students.map(s => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
+                            {students.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                           </SelectGroup>
                         )}
                       </SelectContent>
@@ -174,7 +174,7 @@ export default function Tasks() {
             </h3>
             <div className="space-y-3">
               {pendingTasks.map(task => (
-                <div key={task._id} className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors flex gap-4 group">
+                <div key={task.id} className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors flex gap-4 group">
                   <div className="pt-1">
                     <div 
                       onClick={() => toggleStatus(task)}
@@ -214,7 +214,7 @@ export default function Tasks() {
               <h3 className="font-semibold text-lg mb-4 text-muted-foreground">Completed</h3>
               <div className="space-y-3 opacity-60">
                 {completedTasks.map(task => (
-                  <div key={task._id} className="p-4 rounded-xl border bg-secondary flex gap-4">
+                  <div key={task.id} className="p-4 rounded-xl border bg-secondary flex gap-4">
                     <div className="pt-1">
                       <div 
                         onClick={() => toggleStatus(task)}

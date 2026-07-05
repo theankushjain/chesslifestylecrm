@@ -265,7 +265,7 @@ export default function Tally() {
                 </TableHeader>
                 <TableBody>
                   {transactions.map((tx) => (
-                    <TableRow key={tx._id}>
+                    <TableRow key={tx.id}>
                       <TableCell className="text-muted-foreground">{tx.date}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full ${tx.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
@@ -281,7 +281,7 @@ export default function Tally() {
                         {tx.type === 'income' ? '+' : '-'}₹{tx.amount.toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-500" onClick={() => handleDelete(tx._id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-500" onClick={() => handleDelete(tx.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>

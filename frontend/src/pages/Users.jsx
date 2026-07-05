@@ -53,7 +53,7 @@ export default function Users() {
   };
 
   const startEdit = (u) => {
-    setEditingId(u._id);
+    setEditingId(u.id);
     setEditForm({ name: u.name, email: u.email, role: u.role, password: "" });
   };
 
@@ -71,7 +71,7 @@ export default function Users() {
   };
 
   const handleDelete = async (uid) => {
-    if (uid === currentUser._id) {
+    if (uid === currentUser.id) {
       toast.error("You cannot delete yourself.");
       return;
     }
@@ -151,19 +151,19 @@ export default function Users() {
               </TableHeader>
               <TableBody>
                 {users.map((u) => (
-                  <TableRow key={u._id}>
+                  <TableRow key={u.id}>
                     <TableCell className="font-medium">
-                      {editingId === u._id ? (
+                      {editingId === u.id ? (
                         <Input className="h-8" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
                       ) : u.name}
                     </TableCell>
                     <TableCell>
-                      {editingId === u._id ? (
+                      {editingId === u.id ? (
                         <Input className="h-8" type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
                       ) : u.email}
                     </TableCell>
                     <TableCell>
-                      {editingId === u._id ? (
+                      {editingId === u.id ? (
                         <Select value={editForm.role} onValueChange={(v) => setEditForm({...editForm, role: v})}>
                           <SelectTrigger className="h-8 text-xs w-[110px]">
                             <SelectValue />
@@ -179,9 +179,9 @@ export default function Users() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {editingId === u._id ? (
+                      {editingId === u.id ? (
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => handleSaveEdit(u._id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => handleSaveEdit(u.id)}>
                             <Check className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}>
@@ -193,7 +193,7 @@ export default function Users() {
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => startEdit(u)}>
                             <Edit2 className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(u._id)} disabled={u._id === currentUser._id}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => handleDelete(u.id)} disabled={u.id === currentUser.id}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
