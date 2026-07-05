@@ -867,7 +867,7 @@ async def chat(body: ChatIn, user: dict = Depends(require_roles("admin", "staff"
             contents.append({"role": "user", "parts": [{"text": body.message}]})
             
             response = genai_client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 contents=contents,
                 config={"system_instruction": system_instruction, "temperature": 0.2}
             )
