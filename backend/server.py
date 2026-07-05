@@ -25,9 +25,18 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@thechesslifestyle.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
+
+genai_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        genai_client = genai.Client(api_key=GEMINI_API_KEY)
+    except ImportError:
+        pass
 
 app = FastAPI(title="The Chess Lifestyle CRM")
 api = APIRouter(prefix="/api")
@@ -801,10 +810,12 @@ async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
                 })
     out.sort(key=lambda x: x["time"])
     return out
-    students = await db.students.find().to_list(200)
-    leads = await db.leads.find().to_list(200)
+
+async def get_crm_context():
+    students = await db.students.find().to_list(1000)
+    leads = await db.leads.find().to_list(1000)
     today = date.today()
-    payments = await db.payments.find({"year": today.year, "month": today.month}).to_list(200)
+    payments = await db.payments.find({"year": today.year, "month": today.month}).to_list(1000)
 
     s_lines = []
     for s in students:
@@ -839,7 +850,31 @@ async def chat(body: ChatIn, user: dict = Depends(require_roles("admin", "staff"
         "role": "user", "content": body.message, "created_at": iso(now_utc())
     })
     
-    reply = "AI Chat is temporarily disabled. Please contact support to re-enable it."
+    if not genai_client:
+        reply = "AI Chat requires a Gemini API key. Please set GEMINI_API_KEY in the environment."
+    else:
+        try:
+            from google import genai
+            crm_context = await get_crm_context()
+            system_instruction = "You are a helpful CRM assistant for The Chess Lifestyle academy. Use ONLY the following data to answer questions:\n\n" + crm_context
+            
+            history_docs = await db.chat_messages.find({"session_id": session_id}).sort("created_at", 1).to_list(20)
+            
+            contents = []
+            for doc in history_docs[:-1]:
+                role = "user" if doc["role"] == "user" else "model"
+                contents.append({"role": role, "parts": [{"text": doc["content"]}]})
+            contents.append({"role": "user", "parts": [{"text": body.message}]})
+            
+            response = genai_client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=contents,
+                config={"system_instruction": system_instruction, "temperature": 0.2}
+            )
+            reply = response.text
+        except Exception as e:
+            logger.error(f"Gemini error: {e}")
+            reply = f"Error calling AI: {str(e)}"
 
     await db.chat_messages.insert_one({
         "_id": str(uuid.uuid4()), "session_id": session_id, "user_id": user["_id"],
