@@ -12,7 +12,7 @@ import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
-import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, ageFromDob, nextBirthdayDays } from "@/lib/whatsapp";
+import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, studentPortalCredentialsMessage, ageFromDob, nextBirthdayDays } from "@/lib/whatsapp";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -31,6 +31,7 @@ export default function StudentDetail() {
   const [payments, setPayments] = useState([]);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const canEdit = user.role === "admin" || user.role === "staff";
   const canDelete = user.role === "admin";
 
@@ -146,11 +147,12 @@ export default function StudentDetail() {
               </button>
             )}
             {canEdit && (
-              <button onClick={() => setEditOpen(true)} data-testid="student-edit-btn"
-                className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
-                <Pencil className="w-4 h-4" />
-              </button>
-            )}
+               <div className="flex gap-2 w-full md:w-auto">
+              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-none flex-1 md:flex-none">Create Account</Button>
+              <Button onClick={() => setEditOpen(true)} className="rounded-none flex-1 md:flex-none">
+                <Pencil className="w-4 h-4 mr-2" /> Edit
+              </Button>
+            </div>)}
             {canDelete && (
               <button onClick={() => setDeleteOpen(true)} data-testid="student-delete-btn"
                 className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
@@ -184,6 +186,11 @@ export default function StudentDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Account Dialog */}
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <StudentAccountDialog student={student} onSaved={() => { setAccountOpen(false); load(); }} />
+      </Dialog>
 
       {/* Quick attendance */}
       <div className="mb-6">
@@ -341,6 +348,81 @@ function StudentEditDialog({ student, onSaved }) {
       <DialogFooter>
         <Button onClick={save} disabled={saving || !form.name} data-testid="student-edit-save" className="rounded-none">
           {saving ? "Saving..." : "Save changes"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function StudentAccountDialog({ student, onSaved }) {
+  const [form, setForm] = useState({
+    email: student.email || "",
+    password: Math.random().toString(36).slice(-8)
+  });
+  const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState(false);
+
+  const createAccount = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/students/${student.id}/account`, form);
+      toast.success("Account created successfully!");
+      setCreated(true);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleWhatsapp = () => {
+    const msg = studentPortalCredentialsMessage(student, form.email, form.password);
+    openWhatsapp(student.parent_phone || student.phone, msg);
+    onSaved();
+  };
+
+  if (created) {
+    return (
+      <DialogContent className="rounded-none max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="font-serif text-2xl">Account Created</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <p className="text-sm text-muted-foreground">The portal account has been successfully created. You can now share the credentials with the parent.</p>
+          <div className="bg-muted p-3 text-sm font-mono rounded">
+            <div>Email: {form.email}</div>
+            <div>Password: {form.password}</div>
+          </div>
+        </div>
+        <DialogFooter className="flex-col gap-2">
+          <Button onClick={handleWhatsapp} className="rounded-none w-full bg-[#25D366] hover:bg-[#25D366]/90 text-white">
+            <WhatsappIcon className="w-4 h-4 mr-2" /> Share via WhatsApp
+          </Button>
+          <Button variant="outline" onClick={onSaved} className="rounded-none w-full">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    );
+  }
+
+  return (
+    <DialogContent className="rounded-none max-w-sm">
+      <DialogHeader>
+        <DialogTitle className="font-serif text-2xl">Create Portal Account</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-2">
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Email (Login ID)</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-none mt-1" />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Password</Label>
+          <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="rounded-none mt-1" />
+          <p className="text-xs text-muted-foreground mt-1">A secure password has been auto-generated.</p>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={createAccount} disabled={saving || !form.email || !form.password} className="rounded-none w-full">
+          {saving ? "Creating..." : "Create Account"}
         </Button>
       </DialogFooter>
     </DialogContent>

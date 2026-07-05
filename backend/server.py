@@ -125,6 +125,10 @@ class StudentIn(BaseModel):
     dob: Optional[str] = None  # YYYY-MM-DD
     tags: list[str] = []
 
+class AccountCreate(BaseModel):
+    email: str
+    password: str
+
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None

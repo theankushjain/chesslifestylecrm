@@ -30,6 +30,11 @@ export function studentBirthdayMessage(student) {
   return `Hi ${to},\n\nWishing ${who} a very happy birthday! ♟️\n\nMay this year be full of great moves, brilliant checkmates and joyful learning.\n\n— Team The Chess Lifestyle`;
 }
 
+export function studentPortalCredentialsMessage(student, email, password) {
+  const to = student.parent_name || student.name || "there";
+  return `Hi ${to},\n\nWe've created a student portal account for ${student.name} at The Chess Lifestyle!\n\nYou can log in to view attendance, fees, and more.\n\nLogin link: https://thechesslifestyle.com/login\nEmail: ${email}\nPassword: ${password}\n\nPlease keep these credentials safe.\n\nBest regards,`;
+}
+
 export function ageFromDob(dob) {
   if (!dob) return null;
   const d = new Date(dob);

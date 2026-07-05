@@ -12,13 +12,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { format } from "date-fns";
 import { Trash2, IndianRupee, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 
-const FOUNDERS = ["Ankush", "Founder 2", "Founder 3"];
+const FOUNDERS = ["Ankush", "Chirag"];
 const CATEGORIES = ["Salary", "Investment", "Repayment", "Operations", "Marketing", "Software", "Rent", "Other"];
 
 export default function Tally() {
   const [summary, setSummary] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const [form, setForm] = useState({
     type: "expense",
@@ -46,6 +47,11 @@ export default function Tally() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddInvestmentClick = () => {
+    setActiveTab("transactions");
+    setForm(f => ({ ...f, type: "income", category: "Investment" }));
   };
 
   const handleAdd = async (e) => {
@@ -85,7 +91,7 @@ export default function Tally() {
         <p className="text-muted-foreground mt-1">Track investments, salaries, and overall business cash flow.</p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions Ledger</TabsTrigger>
@@ -148,9 +154,14 @@ export default function Tally() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Founder Investment Ledger</CardTitle>
-                <CardDescription>Track capital injected and pending repayments.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Founder Investment Ledger</CardTitle>
+                  <CardDescription className="mt-1">Track capital injected and pending repayments.</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={handleAddInvestmentClick} className="shrink-0 rounded-none">
+                  + Add Entry
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
