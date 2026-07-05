@@ -521,17 +521,72 @@ async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("ad
     await db.payments.insert_one(doc)
     return clean(doc)
 
+@api.post("/payments/generate")
+async def generate_payments(user: dict = Depends(require_roles("admin", "staff"))):
+    now = datetime.now()
+    cur_year = now.year
+    cur_month = now.month
+    
+    students = await db.students.find({"status": "active"}).to_list(None)
+    generated = 0
+    for s in students:
+        existing = await db.payments.find_one({"student_id": s["_id"], "year": cur_year, "month": cur_month})
+        if not existing:
+            doc = {
+                "_id": str(uuid.uuid4()),
+                "student_id": s["_id"],
+                "year": cur_year,
+                "month": cur_month,
+                "amount": s.get("monthly_fee", 0),
+                "status": "unpaid",
+                "method": "",
+                "created_at": iso(now_utc())
+            }
+            await db.payments.insert_one(doc)
+            generated += 1
+            
+    return {"generated": generated}
+
+
 @api.patch("/payments/{pid}")
 async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    
+    payment = await db.payments.find_one({"_id": pid})
+    if not payment:
+        raise HTTPException(404, "Not found")
+    was_unpaid = payment.get("status") != "paid"
+
     if updates.get("status") == "paid" and not updates.get("paid_date"):
         updates["paid_date"] = iso(now_utc())
+    
     if updates:
         await db.payments.update_one({"_id": pid}, {"$set": updates})
+    
     doc = await db.payments.find_one({"_id": pid})
-    if not doc:
-        raise HTTPException(404, "Not found")
+    
+    # Sync with Tally if marked paid
+    if was_unpaid and doc.get("status") == "paid":
+        student = await db.students.find_one({"_id": doc["student_id"]})
+        student_name = student["name"] if student else "Unknown Student"
+        month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
+        t_doc = {
+            "_id": str(uuid.uuid4()),
+            "type": "income",
+            "category": "Fee Income",
+            "amount": float(doc["amount"]),
+            "description": f"Fees from {student_name} - {month_name} {doc['year']}",
+            "date": iso(now_utc())[:10],
+            "created_at": iso(now_utc())
+        }
+        await db.transactions.insert_one(t_doc)
+
     return clean(doc)
+
+@api.delete("/payments/{pid}")
+async def delete_payment(pid: str, user: dict = Depends(require_roles("admin"))):
+    await db.payments.delete_one({"_id": pid})
+    return {"ok": True}
 
 
 @api.get("/leads")

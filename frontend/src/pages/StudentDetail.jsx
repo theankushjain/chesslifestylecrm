@@ -71,6 +71,15 @@ export default function StudentDetail() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
+  const deletePayment = async (pid) => {
+    if (!confirm("Are you sure you want to delete this payment record?")) return;
+    try {
+      await api.delete(`/payments/${pid}`);
+      toast.success("Payment deleted");
+      load();
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
   if (!student) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
 
   return (
@@ -196,11 +205,16 @@ export default function StudentDetail() {
                 <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
                 <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
               </div>
-              {p.status !== "paid" ? (
-                <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-none">Mark paid</Button>
-              ) : (
-                <span className="text-xs text-success uppercase tracking-widest">Paid</span>
-              )}
+              <div className="flex items-center gap-2">
+                {p.status !== "paid" ? (
+                  <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-none">Mark paid</Button>
+                ) : (
+                  <span className="text-xs text-success uppercase tracking-widest">Paid</span>
+                )}
+                <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
           {payments.length === 0 && <div className="p-4 text-sm text-muted-foreground">No fee records.</div>}
@@ -305,6 +319,8 @@ function StudentEditDialog({ student, onSaved }) {
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="graduated">Graduated</SelectItem>
+                <SelectItem value="exited">Exited</SelectItem>
               </SelectContent>
             </Select>
           </div>
