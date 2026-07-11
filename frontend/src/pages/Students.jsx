@@ -85,6 +85,11 @@ export default function Students() {
                   <div className="text-xs text-muted-foreground truncate">
                     {s.level} · {s.phone || "no phone"}
                   </div>
+                  {s.notes && (
+                    <div className="text-xs text-muted-foreground truncate mt-0.5 max-w-md" title={s.notes}>
+                      <span className="font-medium">Note:</span> {s.notes}
+                    </div>
+                  )}
                 </div>
               </Link>
               <div className="flex items-center gap-2 shrink-0 px-4">
