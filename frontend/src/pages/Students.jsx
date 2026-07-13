@@ -86,7 +86,7 @@ export default function Students() {
                     {s.level} · {s.phone || "no phone"}
                   </div>
                   {s.notes && (
-                    <div className="text-xs text-muted-foreground truncate mt-0.5 max-w-md" title={s.notes}>
+                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5 max-w-md" title={s.notes}>
                       <span className="font-medium">Note:</span> {s.notes}
                     </div>
                   )}
