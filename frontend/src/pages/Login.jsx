@@ -10,12 +10,6 @@ import { Crown } from "lucide-react";
 
 const AUTH_IMG = "https://images.pexels.com/photos/6041464/pexels-photo-6041464.jpeg";
 
-const PRESETS = [
-  { label: "Admin", email: "admin@thechesslifestyle.com", password: "admin123", testid: "preset-admin" },
-  { label: "Staff", email: "staff@thechesslifestyle.com", password: "staff123", testid: "preset-staff" },
-  { label: "Student", email: "aarav@student.com", password: "student123", testid: "preset-student" },
-];
-
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -95,7 +89,6 @@ export default function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
-
 
         </div>
       </div>
