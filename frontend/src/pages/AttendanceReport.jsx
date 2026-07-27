@@ -125,6 +125,7 @@ export default function AttendanceReport() {
           <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-none">
             <ChevronRight className="w-4 h-4" />
           </Button>
+          </div>
         </div>
       </div>
 
