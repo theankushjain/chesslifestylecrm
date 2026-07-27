@@ -230,7 +230,12 @@ export default function StudentDetail() {
 
       {/* Attendance history */}
       <div>
-        <div className="label-over mb-2">Attendance (recent)</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="label-over !mb-0">Attendance (recent)</div>
+          <Link to="/attendance" className="text-xs uppercase tracking-widest text-primary hover:underline">
+            View Report
+          </Link>
+        </div>
         <div className="bg-white border border-border/60 divide-y divide-border/60">
           {attendance.slice(0, 10).map((a) => {
             const Icon = STATUS_ICONS[a.status]?.icon || Clock;

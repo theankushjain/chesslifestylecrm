@@ -159,7 +159,10 @@ export default function Users() {
                     </TableCell>
                     <TableCell>
                       {editingId === u.id ? (
-                        <Input className="h-8" type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
+                        <div className="space-y-1">
+                          <Input className="h-8" type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
+                          <Input className="h-8" type="password" placeholder="New Password..." value={editForm.password || ""} onChange={(e) => setEditForm({...editForm, password: e.target.value})} />
+                        </div>
                       ) : u.email}
                     </TableCell>
                     <TableCell>

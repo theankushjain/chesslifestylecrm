@@ -22,7 +22,7 @@ DB_NAME = os.environ['DB_NAME']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGO = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@thechesslifestyle.com')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'At18zw9c18&')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
@@ -239,6 +239,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
     linked_student_id: Optional[str] = None
+    password: Optional[str] = None
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -309,6 +310,8 @@ async def seed_admin():
             "created_at": iso(now_utc()),
         })
         logger.info(f"Seeded admin: {ADMIN_EMAIL}")
+    else:
+        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}})
 
 async def seed_demo_data():
     if await db.students.count_documents({}) > 0:
@@ -496,7 +499,12 @@ async def delete_student(sid: str, user: dict = Depends(require_roles("admin")))
 
 
 @api.get("/attendance")
-async def list_attendance(student_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def list_attendance(
+    student_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
     q = {}
     if user["role"] == "student":
         sid = user.get("linked_student_id")
@@ -504,7 +512,19 @@ async def list_attendance(student_id: Optional[str] = None, user: dict = Depends
         q["student_id"] = sid
     elif student_id:
         q["student_id"] = student_id
-    docs = await db.attendance.find(q).sort("date", -1).to_list(500)
+        
+    if start_date or end_date:
+        date_q = {}
+        if start_date:
+            date_q["$gte"] = start_date
+        if end_date:
+            date_q["$lte"] = end_date
+        q["date"] = date_q
+        limit = 5000
+    else:
+        limit = 500
+
+    docs = await db.attendance.find(q).sort("date", -1).to_list(limit)
     return [clean(d) for d in docs]
 
 @api.post("/attendance")
@@ -1025,9 +1045,7 @@ async def get_tasks(user: dict = Depends(get_current_user)):
         tasks = await db.tasks.find().sort("created_at", -1).to_list(1000)
     else:
         queries = [{"assignee": user["_id"]}]
-        if user["role"] == "staff":
-            queries.append({"assignee": "all_staff"})
-        elif user["role"] == "student":
+        if user["role"] == "student":
             queries.append({"assignee": "all_students"})
             if user.get("linked_student_id"):
                 queries.append({"assignee": user["linked_student_id"]})

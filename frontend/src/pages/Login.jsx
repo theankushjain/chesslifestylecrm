@@ -96,20 +96,7 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-8">
-            <div className="label-over mb-3">Quick access</div>
-            <div className="grid grid-cols-3 gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.label} type="button" onClick={() => applyPreset(p)}
-                  data-testid={p.testid}
-                  className="border border-border/60 py-2 text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-colors"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

@@ -6,15 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
+import { useAuth } from "@/context/AuthContext";
+import { exportToCSV } from "@/lib/export";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
 export default function Students() {
+  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -40,7 +43,13 @@ export default function Students() {
           <div className="label-over">Roster</div>
           <h1 className="text-4xl font-serif">Students</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && (
+            <Button variant="outline" onClick={() => exportToCSV(students, "students_report.csv")} className="rounded-none h-10">
+              <Download className="w-4 h-4 mr-1.5" /> Export
+            </Button>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="add-student-btn" className="rounded-none h-10">
               <Plus className="w-4 h-4 mr-1.5" /> Add
@@ -48,6 +57,7 @@ export default function Students() {
           </DialogTrigger>
           <StudentDialog onSaved={() => { setOpen(false); load(); }} />
         </Dialog>
+        </div>
       </div>
 
       <div className="mb-4 relative">

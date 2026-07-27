@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, IndianRupee, Trash2, Wand2 } from "lucide-react";
+import { CheckCircle2, IndianRupee, Trash2, Wand2, FileText } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { generatePDF } from "@/lib/pdfExport";
 
 export default function Payments() {
+  const { user } = useAuth();
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState({});
   const [filter, setFilter] = useState("all");
@@ -62,6 +65,26 @@ export default function Payments() {
   const totalPaid = payments.filter((p) => p.status === "paid" && p.month === now.getMonth() + 1 && p.year === now.getFullYear())
     .reduce((s, p) => s + p.amount, 0);
 
+  const handleExportPDF = () => {
+    const head = ["Student Name", "Month", "Amount (Rs)", "Status"];
+    const body = filtered.map(p => {
+      const s = students[p.student_id];
+      return [
+        s?.name || "?",
+        `${monthName(p.month)} ${p.year}`,
+        p.amount,
+        p.status.toUpperCase()
+      ];
+    });
+    
+    generatePDF({
+      title: `Fees Report (${filter})`,
+      filename: `fees_report_${filter}.pdf`,
+      head,
+      body
+    });
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
       <div className="flex items-start justify-between mb-6">
@@ -69,9 +92,16 @@ export default function Payments() {
           <div className="label-over">Ledger</div>
           <h1 className="text-4xl font-serif">Fees</h1>
         </div>
-        <Button onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-none h-10">
-          <Wand2 className="w-4 h-4 mr-1.5" /> {generating ? "Generating..." : "Generate Month Fees"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && (
+            <Button variant="outline" onClick={handleExportPDF} className="rounded-none h-10">
+              <FileText className="w-4 h-4 mr-1.5" /> PDF
+            </Button>
+          )}
+          <Button onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-none h-10">
+            <Wand2 className="w-4 h-4 mr-1.5" /> {generating ? "Generating..." : "Generate Month Fees"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-px bg-border/60 border border-border/60 mb-6">

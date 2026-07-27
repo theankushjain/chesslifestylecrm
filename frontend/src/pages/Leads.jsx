@@ -6,11 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, PhoneCall, ChevronRight, Calendar } from "lucide-react";
+import { Plus, Phone, PhoneCall, ChevronRight, Calendar, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, leadOutreachMessage } from "@/lib/whatsapp";
+import { useAuth } from "@/context/AuthContext";
+import { exportToCSV } from "@/lib/export";
+import { generatePDF } from "@/lib/pdfExport";
 
 export const STAGES = [
   { key: "new", label: "New", color: "bg-info text-white" },
@@ -22,6 +25,7 @@ export const STAGES = [
 ];
 
 export default function Leads() {
+  const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
@@ -40,6 +44,28 @@ export default function Leads() {
     return acc;
   }, {});
 
+  const handleExportPDF = () => {
+    const head = ["Name", "Phone", "Source", "Stage", "Tags"];
+    const body = filtered.map(l => {
+      const stageObj = STAGES.find(s => s.key === l.stage);
+      return [
+        l.name,
+        l.phone || "-",
+        l.source || "Unknown",
+        stageObj ? stageObj.label : l.stage,
+        l.tags ? l.tags.join(", ") : ""
+      ];
+    });
+
+    const filterLabel = filter === "all" ? "All Stages" : STAGES.find(s => s.key === filter)?.label || filter;
+    generatePDF({
+      title: `Current Leads Report (${filterLabel})`,
+      filename: `leads_report_${filter}.pdf`,
+      head,
+      body
+    });
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
       <div className="flex items-start justify-between mb-6">
@@ -47,7 +73,18 @@ export default function Leads() {
           <div className="label-over">Pipeline</div>
           <h1 className="text-4xl font-serif">Leads</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && (
+            <>
+              <Button variant="outline" onClick={() => exportToCSV(leads, "leads_report.csv")} className="rounded-none h-10">
+                <Download className="w-4 h-4 mr-1.5" /> Export
+              </Button>
+              <Button variant="outline" onClick={handleExportPDF} className="rounded-none h-10">
+                <FileText className="w-4 h-4 mr-1.5" /> PDF
+              </Button>
+            </>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="add-lead-btn" className="rounded-none h-10">
               <Plus className="w-4 h-4 mr-1.5" /> Add
@@ -55,6 +92,7 @@ export default function Leads() {
           </DialogTrigger>
           <LeadDialog onSaved={() => { setOpen(false); load(); }} />
         </Dialog>
+        </div>
       </div>
 
       {/* Stage filter chips */}

@@ -18,7 +18,7 @@ import Tally from "@/pages/Tally";
 import Users from "@/pages/Users";
 import Tasks from "@/pages/Tasks";
 import Profile from "@/pages/Profile";
-
+import AttendanceReport from "@/pages/AttendanceReport";
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>;
@@ -30,6 +30,7 @@ const Protected = ({ children, roles }) => {
 const RoleHome = () => {
   const { user } = useAuth();
   if (user.role === "student") return <Navigate to="/portal" replace />;
+  if (user.role === "staff") return <Navigate to="/classes" replace />;
   return <Dashboard />;
 };
 
@@ -43,16 +44,17 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
-              <Route path="students" element={<Protected roles={["admin","staff"]}><Students /></Protected>} />
+              <Route path="students" element={<Protected roles={["admin"]}><Students /></Protected>} />
               <Route path="students/:id" element={<Protected><StudentDetail /></Protected>} />
-              <Route path="leads" element={<Protected roles={["admin","staff"]}><Leads /></Protected>} />
-              <Route path="leads/:id" element={<Protected roles={["admin","staff"]}><LeadDetail /></Protected>} />
+              <Route path="leads" element={<Protected roles={["admin"]}><Leads /></Protected>} />
+              <Route path="leads/:id" element={<Protected roles={["admin"]}><LeadDetail /></Protected>} />
               <Route path="classes" element={<Protected roles={["admin","staff"]}><Classes /></Protected>} />
               <Route path="classes/:id" element={<Protected roles={["admin","staff"]}><BatchDetail /></Protected>} />
-              <Route path="payments" element={<Protected roles={["admin","staff"]}><Payments /></Protected>} />
+              <Route path="payments" element={<Protected roles={["admin"]}><Payments /></Protected>} />
               <Route path="tally" element={<Protected roles={["admin"]}><Tally /></Protected>} />
               <Route path="chat" element={<Protected roles={["admin"]}><Chatbot /></Protected>} />
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
+              <Route path="attendance" element={<Protected roles={["admin", "staff"]}><AttendanceReport /></Protected>} />
               <Route path="tasks" element={<Protected><Tasks /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />
               <Route path="profile" element={<Protected><Profile /></Protected>} />

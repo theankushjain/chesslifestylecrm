@@ -19,6 +19,7 @@ export default function Tasks() {
   const [students, setStudents] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -88,19 +89,32 @@ export default function Tasks() {
 
   if (loading) return <div className="p-8">Loading...</div>;
 
-  const pendingTasks = tasks.filter(t => t.status !== "completed");
-  const completedTasks = tasks.filter(t => t.status === "completed");
+  let displayTasks = tasks;
+  if (user?.role === "admin" && filterMyTasks) {
+    displayTasks = tasks.filter(t => t.assignee === user.id);
+  }
+
+  const pendingTasks = displayTasks.filter(t => t.status !== "completed");
+  const completedTasks = displayTasks.filter(t => t.status === "completed");
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-primary/10 text-primary rounded-xl">
-          <CheckSquare className="w-6 h-6" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-primary/10 text-primary rounded-xl">
+            <CheckSquare className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-serif font-semibold tracking-tight">Assignments & To-Dos</h1>
+            <p className="text-muted-foreground mt-1">Manage tasks and homework assignments.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-serif font-semibold tracking-tight">Assignments & To-Dos</h1>
-          <p className="text-muted-foreground mt-1">Manage tasks and homework assignments.</p>
-        </div>
+        {user?.role === "admin" && (
+          <div className="flex items-center gap-1 bg-secondary p-1 rounded-lg">
+            <Button variant={!filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(false)} className="rounded-md">All Tasks</Button>
+            <Button variant={filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(true)} className="rounded-md">My Tasks</Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
