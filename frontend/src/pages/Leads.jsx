@@ -45,14 +45,19 @@ export default function Leads() {
   }, {});
 
   const handleExportPDF = () => {
-    const head = ["Name", "Stage", "Last Call Date", "Outcome", "Next Follow-up", "Suggestion"];
+    const head = ["Name", "Stage", "Last Call", "Outcome & Remarks", "Next Follow-up", "Suggestion"];
     const body = filtered.map(l => {
       const stageObj = STAGES.find(s => s.key === l.stage);
       const stageLabel = stageObj ? stageObj.label : l.stage;
       
       const lastCall = l.call_logs?.[0];
       const lastCallDate = lastCall ? new Date(lastCall.date).toLocaleDateString() : "-";
-      const outcome = lastCall ? lastCall.outcome : "-";
+      let outcomeStr = "-";
+      if (lastCall) {
+        outcomeStr = lastCall.outcome;
+        if (lastCall.remarks) outcomeStr += `: ${lastCall.remarks}`;
+      }
+      
       const followUpDate = l.next_follow_up ? new Date(l.next_follow_up).toLocaleDateString() : "-";
       
       let suggestion = "Up to date";
@@ -66,7 +71,7 @@ export default function Leads() {
         l.name,
         stageLabel,
         lastCallDate,
-        outcome,
+        outcomeStr,
         followUpDate,
         suggestion
       ];
