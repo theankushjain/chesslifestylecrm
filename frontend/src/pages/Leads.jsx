@@ -45,7 +45,7 @@ export default function Leads() {
   }, {});
 
   const handleExportPDF = () => {
-    const head = ["Name", "Stage", "Last Call", "Outcome & Remarks", "Next Follow-up", "Suggestion"];
+    const head = ["Name", "Phone Number", "Stage", "Last Call", "Outcome and Remarks"];
     const body = filtered.map(l => {
       const stageObj = STAGES.find(s => s.key === l.stage);
       const stageLabel = stageObj ? stageObj.label : l.stage;
@@ -57,23 +57,13 @@ export default function Leads() {
         outcomeStr = lastCall.outcome;
         if (lastCall.remarks) outcomeStr += `: ${lastCall.remarks}`;
       }
-      
-      const followUpDate = l.next_follow_up ? new Date(l.next_follow_up).toLocaleDateString() : "-";
-      
-      let suggestion = "Up to date";
-      if (!l.next_follow_up) {
-        suggestion = "Schedule Follow-up";
-      } else if (new Date(l.next_follow_up) < new Date()) {
-        suggestion = "Call Now (Overdue)";
-      }
 
       return [
         l.name,
+        l.phone || "-",
         stageLabel,
         lastCallDate,
-        outcomeStr,
-        followUpDate,
-        suggestion
+        outcomeStr
       ];
     });
 
