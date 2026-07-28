@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ export function generatePDF({ title, filename, head, body, orientation = "portra
     doc.text(`Generated on: ${format(new Date(), "PPpp")}`, 14, 38);
 
     // Add table
-    doc.autoTable({
+    autoTable(doc, {
       startY: 45,
       head: [head],
       body: body,
