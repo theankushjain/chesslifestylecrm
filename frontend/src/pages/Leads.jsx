@@ -45,24 +45,44 @@ export default function Leads() {
   }, {});
 
   const handleExportPDF = () => {
-    const head = ["Name", "Phone", "Source", "Stage", "Tags"];
+    const head = ["Name", "Stage", "Last Call Date", "Outcome", "Next Follow-up", "Suggestion"];
     const body = filtered.map(l => {
       const stageObj = STAGES.find(s => s.key === l.stage);
+      const stageLabel = stageObj ? stageObj.label : l.stage;
+      
+      const lastCall = l.call_logs?.[0];
+      const lastCallDate = lastCall ? new Date(lastCall.date).toLocaleDateString() : "-";
+      const outcome = lastCall ? lastCall.outcome : "-";
+      const followUpDate = l.next_follow_up ? new Date(l.next_follow_up).toLocaleDateString() : "-";
+      
+      let suggestion = "Up to date";
+      if (!l.next_follow_up) {
+        suggestion = "Schedule Follow-up";
+      } else if (new Date(l.next_follow_up) < new Date()) {
+        suggestion = "Call Now (Overdue)";
+      }
+
       return [
         l.name,
-        l.phone || "-",
-        l.source || "Unknown",
-        stageObj ? stageObj.label : l.stage,
-        l.tags ? l.tags.join(", ") : ""
+        stageLabel,
+        lastCallDate,
+        outcome,
+        followUpDate,
+        suggestion
       ];
     });
 
     const filterLabel = filter === "all" ? "All Stages" : STAGES.find(s => s.key === filter)?.label || filter;
     generatePDF({
-      title: `Current Leads Report (${filterLabel})`,
-      filename: `leads_report_${filter}.pdf`,
+      title: `Current Leads Summary (${filterLabel})`,
+      filename: `leads_summary_${filter}.pdf`,
+      summary: [
+        `Total Leads in this view: ${filtered.length}`,
+        `Action suggestions are based on the scheduled follow-up dates.`
+      ],
       head,
-      body
+      body,
+      orientation: "landscape"
     });
   };
 

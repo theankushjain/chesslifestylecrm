@@ -72,32 +72,42 @@ export default function AttendanceReport() {
   }, [attendance]);
 
   const handleExportPDF = () => {
-    const head = ["Student Name", ...daysArray.map(String), "Total P", "Total A"];
-    const body = students.map((s) => {
+    const head = ["Student Name", "Total Absents (A)", "Total Presents (P)"];
+    
+    // Calculate totals for all students
+    const summaryData = students.map((s) => {
       const stdAtt = attendanceMap[s.id] || {};
       let presentCount = 0;
       let absentCount = 0;
       
-      const row = [s.name];
       for (const day of daysArray) {
         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const status = stdAtt[dateStr];
-        if (status === "present") { presentCount++; row.push("P"); }
-        else if (status === "absent") { absentCount++; row.push("A"); }
-        else if (status === "late") { presentCount++; row.push("L"); }
-        else { row.push("-"); }
+        if (status === "present" || status === "late") presentCount++;
+        else if (status === "absent") absentCount++;
       }
-      row.push(String(presentCount), String(absentCount));
-      return row;
+      
+      return { name: s.name, presentCount, absentCount };
     });
+
+    // Sort by max absents
+    summaryData.sort((a, b) => b.absentCount - a.absentCount);
+    
+    const body = summaryData.map(s => [s.name, String(s.absentCount), String(s.presentCount)]);
+    const totalAbsents = summaryData.reduce((acc, s) => acc + s.absentCount, 0);
 
     const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
     generatePDF({
-      title: `Monthly Attendance Report - ${monthName}`,
-      filename: `attendance_${monthName.replace(" ", "_")}.pdf`,
+      title: `Monthly Attendance Summary - ${monthName}`,
+      filename: `attendance_summary_${monthName.replace(" ", "_")}.pdf`,
+      summary: [
+        `Total Enrolled Students: ${students.length}`,
+        `Total Absences Recorded: ${totalAbsents}`,
+        `Below is the list of students prioritized by maximum absents.`
+      ],
       head,
       body,
-      orientation: "landscape"
+      orientation: "portrait"
     });
   };
 

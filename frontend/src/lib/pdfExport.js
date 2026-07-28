@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-export function generatePDF({ title, filename, head, body, orientation = "portrait" }) {
+export function generatePDF({ title, filename, head, body, orientation = "portrait", summary = [] }) {
   try {
     const doc = new jsPDF({ orientation });
 
@@ -20,9 +20,20 @@ export function generatePDF({ title, filename, head, body, orientation = "portra
     doc.setTextColor(100);
     doc.text(`Generated on: ${format(new Date(), "PPpp")}`, 14, 38);
 
+    let startY = 45;
+    if (summary && summary.length > 0) {
+      doc.setFontSize(11);
+      doc.setTextColor(0);
+      summary.forEach(line => {
+        doc.text(line, 14, startY);
+        startY += 6;
+      });
+      startY += 4;
+    }
+
     // Add table
     autoTable(doc, {
-      startY: 45,
+      startY,
       head: [head],
       body: body,
       theme: "striped",

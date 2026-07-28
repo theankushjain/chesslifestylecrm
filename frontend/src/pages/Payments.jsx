@@ -66,8 +66,11 @@ export default function Payments() {
     .reduce((s, p) => s + p.amount, 0);
 
   const handleExportPDF = () => {
-    const head = ["Student Name", "Month", "Amount (Rs)", "Status"];
-    const body = filtered.map(p => {
+    // Only list unpaid students
+    const unpaidStudents = filtered.filter(p => p.status !== "paid");
+    
+    const head = ["Student Name", "Month", "Amount Due", "Status"];
+    const body = unpaidStudents.map(p => {
       const s = students[p.student_id];
       return [
         s?.name || "?",
@@ -78,10 +81,19 @@ export default function Payments() {
     });
     
     generatePDF({
-      title: `Fees Report (${filter})`,
-      filename: `fees_report_${filter}.pdf`,
+      title: `Fees Summary (${filter})`,
+      filename: `fees_summary_${filter}.pdf`,
+      summary: [
+        `Collected this month: Rs. ${totalPaid.toLocaleString('en-IN')}`,
+        `Total Pending: Rs. ${totalUnpaid.toLocaleString('en-IN')}`,
+        `Total Paid Students: ${filtered.filter(p => p.status === "paid").length}`,
+        `Total Unpaid/Overdue Students: ${unpaidStudents.length}`,
+        ``,
+        `Below is the list of pending payments requiring follow-up:`
+      ],
       head,
-      body
+      body,
+      orientation: "portrait"
     });
   };
 
