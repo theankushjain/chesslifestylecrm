@@ -1,19 +1,42 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export function downloadProgressReport(student, outcomes) {
+function loadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = url;
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+  });
+}
+
+export async function downloadProgressReport(student, outcomes) {
   const doc = new jsPDF();
   const completedOutcomes = outcomes.filter(o => o.completed);
   
-  doc.setFontSize(20);
-  doc.text("Learning Progress Report", 14, 22);
+  // Try to load and add the logo
+  const logoImg = await loadImage('/logo.png');
+  let startY = 45;
   
-  doc.setFontSize(12);
-  doc.text(`Student Name: ${student.name}`, 14, 32);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 38);
+  if (logoImg) {
+    doc.addImage(logoImg, 'PNG', 14, 12, 16, 16);
+    doc.setFontSize(20);
+    doc.text("Learning Progress Report", 34, 20);
+    doc.setFontSize(12);
+    doc.text(`Student Name: ${student.name}`, 34, 28);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 130, 28);
+    startY = 40;
+  } else {
+    doc.setFontSize(20);
+    doc.text("Learning Progress Report", 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Student Name: ${student.name}`, 14, 32);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 38);
+  }
   
   if (completedOutcomes.length === 0) {
-    doc.text("No learning outcomes have been marked as completed yet.", 14, 50);
+    doc.text("No learning outcomes have been marked as completed yet.", 14, startY + 5);
   } else {
     const tableData = completedOutcomes.map(o => [
       o.level.split(":")[0], // just the level name to save space
@@ -23,7 +46,7 @@ export function downloadProgressReport(student, outcomes) {
     ]);
     
     autoTable(doc, {
-      startY: 45,
+      startY: startY,
       head: [['Level', 'Module', 'Learning Outcome', 'Completed']],
       body: tableData,
       theme: 'grid',
