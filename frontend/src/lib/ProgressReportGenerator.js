@@ -72,7 +72,7 @@ export async function downloadProgressReport(student, outcomes) {
         0: { cellWidth: 25 },
         1: { cellWidth: 25 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 25, textColor: [249, 115, 22], fontStyle: 'bold' } // orange-500
+        3: { cellWidth: 35, textColor: [249, 115, 22], fontStyle: 'bold' } // orange-500
       }
     });
   }
