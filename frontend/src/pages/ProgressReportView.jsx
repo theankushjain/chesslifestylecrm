@@ -73,8 +73,8 @@ export default function ProgressReportView() {
             {/* Logo Placeholder - Instructed user to add logo.png to public folder */}
             <div className="bg-white p-1.5 rounded-lg shadow-sm">
               <img 
-                src="/logo.png" 
-                alt="thechesslifestyle.com" 
+                src="/favicon.svg" 
+                alt="TheChessLifestyle.com" 
                 className="h-10 w-auto object-contain"
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -86,8 +86,8 @@ export default function ProgressReportView() {
               </div>
             </div>
             <div className="hidden sm:block">
-              <div className="text-white font-bold text-lg tracking-wide">thechesslifestyle.com</div>
-              <div className="text-slate-400 text-[10px] uppercase tracking-widest mt-0.5">Learn to checkmate</div>
+              <div className="text-white font-bold text-lg tracking-wide">TheChessLifestyle.com</div>
+              <div className="text-slate-400 text-[10px] uppercase tracking-widest mt-0.5">life is a chess game, learn to checkmate</div>
             </div>
           </div>
           <Link to="/login" className="text-xs font-semibold uppercase tracking-widest text-slate-300 hover:text-orange-400 transition-colors bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full">

@@ -1,13 +1,24 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-function loadImage(url) {
+function loadImageAsPNG(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
-    img.src = url;
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width || 512;
+        canvas.height = img.height || 512;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png"));
+      } catch (e) {
+        resolve(null);
+      }
+    };
     img.onerror = () => resolve(null);
+    img.src = url;
   });
 }
 
@@ -16,17 +27,21 @@ export async function downloadProgressReport(student, outcomes) {
   const completedOutcomes = outcomes.filter(o => o.completed);
   
   // Try to load and add the logo
-  const logoImg = await loadImage('/logo.png');
+  const logoData = await loadImageAsPNG('/favicon.svg');
   let startY = 45;
   
-  if (logoImg) {
-    doc.addImage(logoImg, 'PNG', 14, 12, 16, 16);
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', 14, 12, 16, 16);
     doc.setFontSize(20);
     doc.text("Learning Progress Report", 34, 20);
     doc.setFontSize(12);
     doc.text(`Student Name: ${student.name}`, 34, 28);
     doc.text(`Date: ${new Date().toLocaleDateString()}`, 130, 28);
-    startY = 40;
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("TheChessLifestyle.com - life is a chess game, learn to checkmate", 14, 38);
+    doc.setTextColor(0); // reset color
+    startY = 45;
   } else {
     doc.setFontSize(20);
     doc.text("Learning Progress Report", 14, 22);
