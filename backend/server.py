@@ -254,6 +254,17 @@ class TaskIn(BaseModel):
 class TaskUpdate(BaseModel):
     status: str
 
+class ProgressOutcome(BaseModel):
+    id: str
+    level: str
+    module: str
+    text: str
+    completed: bool
+    completed_date: Optional[str] = None
+
+class ProgressOutcomesIn(BaseModel):
+    outcomes: List[ProgressOutcome]
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -269,6 +280,7 @@ async def on_startup():
     await db.tasks.create_index("status")
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
     await db.batches.create_index("name")
+    await db.student_progress.create_index("student_id", unique=True)
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
@@ -417,6 +429,88 @@ async def seed_demo_data():
             "created_at": iso(now_utc() - timedelta(days=i*2)),
         })
     logger.info("Demo data seeded")
+
+
+_PROGRESS_TEMPLATE_CACHE = None
+
+def get_progress_template():
+    global _PROGRESS_TEMPLATE_CACHE
+    if _PROGRESS_TEMPLATE_CACHE is not None:
+        return _PROGRESS_TEMPLATE_CACHE
+    
+    template = []
+    current_level = ""
+    current_module = ""
+    filepath = ROOT_DIR.parent / "progress_report" / "progress_report.txt"
+    if not filepath.exists():
+        return template
+    
+    with open(filepath, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("Level "):
+                current_level = line
+            elif line.startswith("Module "):
+                current_module = line
+            else:
+                template.append({
+                    "id": str(uuid.uuid4()),
+                    "level": current_level,
+                    "module": current_module,
+                    "text": line,
+                    "completed": False,
+                    "completed_date": None
+                })
+    _PROGRESS_TEMPLATE_CACHE = template
+    return template
+
+@api.get("/students/{sid}/progress")
+async def get_student_progress(sid: str, user: dict = Depends(get_current_user)):
+    if user["role"] == "student" and user.get("linked_student_id") != sid:
+        raise HTTPException(403, "Forbidden")
+    doc = await db.student_progress.find_one({"student_id": sid})
+    if not doc:
+        template = get_progress_template()
+        outcomes = []
+        for t in template:
+            outcomes.append({**t, "id": str(uuid.uuid4())})
+        doc = {
+            "_id": str(uuid.uuid4()),
+            "student_id": sid,
+            "outcomes": outcomes,
+            "created_at": iso(now_utc())
+        }
+        await db.student_progress.insert_one(doc)
+    return clean(doc)
+
+@api.put("/students/{sid}/progress")
+async def update_student_progress(sid: str, body: ProgressOutcomesIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = await db.student_progress.find_one({"student_id": sid})
+    if not doc:
+        raise HTTPException(404, "Not found")
+    outcomes_dict = [o.model_dump() for o in body.outcomes]
+    await db.student_progress.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {"outcomes": outcomes_dict, "updated_at": iso(now_utc())}}
+    )
+    doc["outcomes"] = outcomes_dict
+    return clean(doc)
+
+@api.get("/public/progress/{sid}")
+async def get_public_progress(sid: str):
+    student = await db.students.find_one({"_id": sid})
+    if not student:
+        raise HTTPException(404, "Not found")
+    progress = await db.student_progress.find_one({"student_id": sid})
+    outcomes = progress["outcomes"] if progress else []
+    
+    return {
+        "student_name": student["name"],
+        "level": student["level"],
+        "outcomes": outcomes
+    }
 
 
 def set_auth_cookie(resp: Response, token: str):
@@ -682,53 +776,55 @@ async def alerts(user: dict = Depends(require_roles("admin", "staff"))):
     cur_month, cur_year = today.month, today.year
     alerts_list = []
 
-    unpaid = await db.payments.find({
-        "year": cur_year, "month": cur_month,
-        "status": {"$in": ["unpaid", "overdue"]}
-    }).to_list(500)
-    for p in unpaid:
-        s = await db.students.find_one({"_id": p["student_id"]})
-        if s:
-            alerts_list.append({
-                "id": p["_id"], "type": "unpaid_fee",
-                "severity": "high" if p["status"] == "overdue" else "medium",
-                "title": f"Unpaid fee: {s['name']}",
-                "message": f"Rs.{p['amount']} pending for {today.strftime('%B %Y')}",
-                "student_id": s["_id"],
-            })
-
-    leads = await db.leads.find({"next_follow_up": {"$ne": None}}).to_list(500)
-    for l in leads:
-        if l["stage"] in ("enrolled", "not_interested"):
-            continue
-        try:
-            fu = date.fromisoformat(l["next_follow_up"])
-        except Exception:
-            continue
-        if fu <= today:
-            days_late = (today - fu).days
-            alerts_list.append({
-                "id": l["_id"], "type": "lead_followup",
-                "severity": "high" if days_late > 0 else "medium",
-                "title": f"Call {l['name']}",
-                "message": f"Follow-up {'overdue by ' + str(days_late) + ' day(s)' if days_late > 0 else 'due today'} — {l['stage'].replace('_',' ')}",
-                "lead_id": l["_id"],
-            })
-
     students = await db.students.find({"status": "active"}).to_list(500)
-    from_date = (today - timedelta(days=14)).isoformat()
-    for s in students:
-        absences = await db.attendance.count_documents({
-            "student_id": s["_id"], "status": "absent", "date": {"$gte": from_date}
-        })
-        if absences >= 3:
-            alerts_list.append({
-                "id": s["_id"], "type": "attendance",
-                "severity": "medium",
-                "title": f"{s['name']} missing classes",
-                "message": f"{absences} absences in last 14 days",
-                "student_id": s["_id"],
+
+    if user["role"] == "admin":
+        unpaid = await db.payments.find({
+            "year": cur_year, "month": cur_month,
+            "status": {"$in": ["unpaid", "overdue"]}
+        }).to_list(500)
+        for p in unpaid:
+            s = await db.students.find_one({"_id": p["student_id"]})
+            if s:
+                alerts_list.append({
+                    "id": p["_id"], "type": "unpaid_fee",
+                    "severity": "high" if p["status"] == "overdue" else "medium",
+                    "title": f"Unpaid fee: {s['name']}",
+                    "message": f"Rs.{p['amount']} pending for {today.strftime('%B %Y')}",
+                    "student_id": s["_id"],
+                })
+
+        leads = await db.leads.find({"next_follow_up": {"$ne": None}}).to_list(500)
+        for l in leads:
+            if l["stage"] in ("enrolled", "not_interested"):
+                continue
+            try:
+                fu = date.fromisoformat(l["next_follow_up"])
+            except Exception:
+                continue
+            if fu <= today:
+                days_late = (today - fu).days
+                alerts_list.append({
+                    "id": l["_id"], "type": "lead_followup",
+                    "severity": "high" if days_late > 0 else "medium",
+                    "title": f"Call {l['name']}",
+                    "message": f"Follow-up {'overdue by ' + str(days_late) + ' day(s)' if days_late > 0 else 'due today'} — {l['stage'].replace('_',' ')}",
+                    "lead_id": l["_id"],
+                })
+
+        from_date = (today - timedelta(days=14)).isoformat()
+        for s in students:
+            absences = await db.attendance.count_documents({
+                "student_id": s["_id"], "status": "absent", "date": {"$gte": from_date}
             })
+            if absences >= 3:
+                alerts_list.append({
+                    "id": s["_id"], "type": "attendance",
+                    "severity": "medium",
+                    "title": f"{s['name']} missing classes",
+                    "message": f"{absences} absences in last 14 days",
+                    "student_id": s["_id"],
+                })
 
     # Upcoming birthdays (today + next 7 days)
     for s in students:
@@ -765,6 +861,22 @@ async def alerts(user: dict = Depends(require_roles("admin", "staff"))):
                 "message": msg,
                 "student_id": s["_id"],
             })
+
+
+    # Pending Tasks
+    if user["role"] == "admin":
+        pending_tasks = await db.tasks.find({"status": "pending"}).to_list(500)
+    else:
+        pending_tasks = await db.tasks.find({"status": "pending", "assignee": {"$in": [user["_id"], "all_staff"]}}).to_list(500)
+        
+    for t in pending_tasks:
+        alerts_list.append({
+            "id": t["_id"], "type": "task",
+            "severity": "medium",
+            "title": f"Task: {t['title']}",
+            "message": t.get("description", "You have a pending task.") or "You have a pending task.",
+            "task_id": t["_id"],
+        })
 
     return alerts_list
 

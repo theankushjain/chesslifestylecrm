@@ -19,6 +19,8 @@ import Users from "@/pages/Users";
 import Tasks from "@/pages/Tasks";
 import Profile from "@/pages/Profile";
 import AttendanceReport from "@/pages/AttendanceReport";
+import ProgressReportView from "@/pages/ProgressReportView";
+
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>;
@@ -42,6 +44,7 @@ function App() {
           <Toaster position="top-right" />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/p/progress/:id" element={<ProgressReportView />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
               <Route path="students" element={<Protected roles={["admin"]}><Students /></Protected>} />

@@ -1,0 +1,193 @@
+Level 1: Beginner Foundations
+Module 1: The Board & The Setup
+Board Orientation: Given a physical chessboard, orient it correctly (light square on the bottom right) in under 5 seconds.
+
+Piece Identification: Verbally name all 6 types of chess pieces with 100% accuracy using flashcards within 30 seconds.
+
+Notation Symbols: Accurately write the algebraic notation letter (K, Q, R, B, N, and blank for pawn) for each corresponding piece with zero errors in a 1-minute written quiz.
+
+Board Coordinates: Given a blank chessboard, correctly identify the algebraic coordinate (e.g., e4, h8) of 10 randomly pointed-at squares within 60 seconds.
+
+Initial Setup: Independently set up all 32 pieces in their correct starting positions on a physical chessboard in under 2 minutes.
+
+Setup Troubleshooting: When presented with a board containing 3 common setup errors, physically fix all errors within 1 minute.
+
+Module 2: Piece Movements & Captures
+Rook Mechanics: Demonstrate the Rook's horizontal/vertical movement and capture a target piece on an empty board in 1 attempt.
+
+Bishop Mechanics: Demonstrate the Bishop's diagonal movement, verbally explain color-bound restrictions, and capture a target piece in 1 attempt.
+
+Queen Mechanics: Navigate a Queen through an obstacle course of 5 target pieces on an empty board in under 5 moves.
+
+King Mechanics & Safety: Demonstrate the King's one-square movement and correctly identify 3 adjacent squares the King cannot step onto because of enemy control in under 30 seconds.
+
+Knight Mechanics: Demonstrate the Knight's jumping ability by successfully navigating a Knight from a1 to h8 on an empty board in under 20 moves.
+
+Pawn Mechanics: Demonstrate all legal pawn moves (initial two-square advance, single-square advance, and diagonal capture) without error on a practice board in 1 attempt.
+
+Piece Values: Verbally state the standard point value of the pieces (P=1, N=3, B=3, R=5, Q=9) and calculate the total value of 3 given piece combinations with 100% accuracy within 1 minute.
+
+Level 2: Advanced Beginner
+Module 3: Special Rules & The Concept of Check
+Pawn Promotion: Demonstrate a legal pawn promotion by moving a pawn to the final rank and immediately replacing it with a Queen, Rook, Bishop, or Knight in 1 attempt.
+
+Castling (Rules): Verbally list the 4 conditions required for castling (King/Rook haven't moved, no pieces in between, King is not in check, King doesn't cross a checked square) without prompting.
+
+Castling (Execution): Given 5 scenarios, identify if castling is legal, and physically execute the move (King moves first) with 100% accuracy within 2 minutes.
+
+En Passant: When presented with the triggering board position, physically execute a legal en passant pawn capture on the immediate following turn in 3 out of 3 practice setups.
+
+Identifying Check: When shown 5 distinct board diagrams, correctly identify whether the King is in check, pointing out the attacking piece in all 5 scenarios within 60 seconds.
+
+Escaping Check: Demonstrate the three methods of escaping check (Capture, Block, Run) across three guided board scenarios without error in under 2 minutes.
+
+Module 4: Game Terminations & Basic Endings
+Concept of Checkmate: Define "Checkmate" in their own words and successfully identify it in 3 distinct puzzle diagrams within 2 minutes.
+
+Concept of Stalemate: Define "Stalemate" in their own words and successfully identify it in 3 distinct puzzle diagrams within 2 minutes.
+
+Checkmate vs. Stalemate: Given 10 endgame board diagrams, correctly categorize each position as Checkmate, Stalemate, or neither, scoring at least 90% within 3 minutes.
+
+Other Draws: Identify three non-stalemate ways a game can draw (Insufficient Material, 50-Move Rule, Threefold Repetition) using flashcards with 100% accuracy.
+
+Ladder Checkmate: Successfully execute a checkmate using two Rooks against a lone King against an instructor within a 15-move limit.
+
+Queen & King Mate: Successfully execute a checkmate using a Queen and King against a lone King against an instructor within a 25-move limit.
+
+Level 3: Intermediate
+Module 5: Board Vision & Legal Play
+Game Recording: During a 20-minute practice game, accurately record the first 15 moves for both sides on a scoresheet using algebraic notation with a maximum of 1 error.
+
+Board Vision (Hanging Pieces): Given a mid-game position containing 3 undefended pieces, identify all 3 "hanging" pieces within 30 seconds.
+
+Safe Captures: Given 5 positions where a piece can be captured, count attackers vs. defenders and declare if the capture is "safe" or "unsafe" with 80% accuracy within 2 minutes.
+
+Evaluating Trades: Evaluate 5 proposed piece trades and correctly label them as Good, Bad, or Equal based on piece point values within 2 minutes.
+
+Opening Principles (Development): In a 10-minute practice game, occupy the center with at least one pawn and develop two minor pieces before move 6.
+
+Opening Principles (King Safety): In the same practice game, demonstrate prioritized King safety by successfully castling before move 10.
+
+Module 6: Single-Move Tactics
+The Fork: Identify and execute a Knight or Pawn fork to win material in 4 out of 5 presented puzzles within 5 minutes.
+
+The Pin: Correctly identify an absolute pin (pinned to the King) versus a relative pin (pinned to a higher-value piece) in 5 board scenarios within 2 minutes.
+
+The Skewer: Execute a successful skewer (attacking a high-value piece in front of a low-value piece) in 3 out of 3 puzzles within 3 minutes.
+
+Mate-in-One: Successfully solve 10 "Mate-in-One" puzzles within a 10-minute time limit, scoring at least 80%.
+
+Level 4: Theory & The Thought Process
+Module 7: Defensive Theory (Saving a Piece)
+The 5 Defensive Methods: Verbally list the 5 ways to save a piece under attack (Move away, Protect it, Capture the attacker, Block the attack, or Counter-attack) with 100% accuracy within 30 seconds.
+
+Applying Defenses: Given 5 board positions where a high-value piece is attacked, physically demonstrate at least two different legal ways to save the piece for each scenario within 3 minutes.
+
+Choosing the Best Defense: Given 5 puzzle scenarios with an attacked piece, correctly choose the most optimal defensive method (e.g., choosing to counter-attack instead of just running away) in 4 out of 5 cases.
+
+The Desperado/Zwischenzug Concept: Solve 3 guided puzzles where the correct way to handle mutually attacked pieces is to play an in-between move (a check or a capture) before moving the threatened piece, within 5 minutes.
+
+Module 8: The "How to Think" Framework (CCT)
+Defining CCT: Define the "CCT" acronym (Checks, Captures, Threats) as the strict order of candidate moves to calculate on every turn with 100% accuracy.
+
+Identifying Checks & Captures: Given 3 complex mid-game diagrams, verbally list every legal Check and Capture available for their color within 2 minutes per diagram.
+
+Identifying Opponent's Threats: Given 3 positions immediately following an opponent's move, successfully answer the question, "What is my opponent threatening to do?" before touching their own piece, scoring 3/3.
+
+The Blunder Check: During a 15-minute supervised game, verbally confirm "My intended move does not leave a piece hanging or allow a mate-in-one" before pressing the clock for the first 15 moves.
+
+Level 5: Advanced Intermediate (Calculation & Strategy)
+Module 9: Multi-Move Tactics (Applying CCT)
+Discovered Attacks: Use the CCT method to solve 4 out of 5 puzzles where moving one piece reveals a hidden attack from a piece behind it within 10 minutes.
+
+Double Check: Identify and execute a double check (forcing the enemy King to move rather than block/capture) in 3 given puzzle positions within 5 minutes.
+
+Removing the Defender: Execute a capture or deflection that successfully removes the guard of a high-value enemy piece in 4 out of 5 puzzles within 10 minutes.
+
+Mate-in-Two: Apply the CCT framework to solve 5 "Mate-in-Two" puzzles (finding a forced two-move sequence that leads to checkmate) within 15 minutes, scoring 100%.
+
+Module 10: Positional Theory & Strategy
+Piece Activity: Compare 5 board positions and correctly identify the most active piece and least active piece for both colors, explaining why (e.g., central control, mobility) in 4 out of 5 scenarios.
+
+Knights vs. Bishops Theory: Verbally define the difference between an "Open game" and a "Closed game," and correctly choose whether a Knight or Bishop is superior in 3 distinct board diagrams within 3 minutes.
+
+Outposts: Identify a natural "Knight outpost" (a square protected by a pawn and unassailable by enemy pawns) and maneuver their Knight to it in 3 mid-game diagrams within 5 minutes.
+
+Pawn Structure Weaknesses: Correctly identify Doubled, Isolated, and Backward pawns across 3 distinct diagrams and explain why they are structural weaknesses within 3 minutes.
+
+Level 6: Pre-Tournament Player
+Module 11: Essential Endgames Theory
+Rule of the Square: Given 5 King vs. Pawn endgame scenarios, calculate whether the King can catch the runaway pawn without physically moving the pieces, scoring 100% within 3 minutes.
+
+The Opposition: Verbally define "The Opposition" and demonstrate taking the opposition with their King to block the enemy King in a guided exercise against an instructor, holding the opposition for 5 consecutive moves.
+
+King & Pawn vs. King: Successfully promote a single pawn and deliver checkmate starting from a winning King + Pawn vs. King position against an instructor within 30 moves.
+
+Lucena & Philidor Positions (Intro): Properly set up the standard Lucena (winning) and Philidor (drawing) Rook + Pawn endgames on a physical board from memory in under 2 minutes.
+
+Module 12: Practical Play & Tournament Skills
+Playing with a Clock: Complete a 15-minute supervised game demonstrating legal moves, pressing the clock with the correct hand, and receiving zero illegal move penalties.
+
+Opening Traps & Defense: Identify and successfully defend against the "Scholar's Mate" (4-move checkmate) and the "Fried Liver Attack" setup on a physical board in 2 out of 2 attempts.
+
+Post-Game Analysis: Using their recorded scoresheet from a practice game, accurately recreate the game on a board, apply the CCT framework retroactively, and verbally identify 1 key tactical blunder they or their opponent made within 10 minutes.
+
+Level 7: Club Player Foundations (Intermediate Strategy & Calculation)
+Module 13: Advanced Calculation (Candidate Moves)
+Generating Candidate Moves: Given 5 complex middlegame positions, write down at least 3 viable candidate moves per position before calculating any lines, scoring 80% within 10 minutes.
+
+Depth of Calculation: Calculate a specific, forcing line 3 moves deep (6 plies) without moving physical pieces, verbally describing the final position with 100% accuracy in 4 out of 5 tests.
+
+Visualizing Quiet Moves: Solve 3 out of 4 tactical puzzles where the winning continuation requires a "quiet" move (a move that is neither a check nor a capture) following an initial sacrifice, within 15 minutes.
+
+Module 14: Middlegame Planning & Pawn Play
+Pawn Breaks: Identify the optimal "pawn break" to open lines in 5 distinct closed middlegame structures, correctly explaining the purpose of the break in 4 out of 5 scenarios within 10 minutes.
+
+Evaluating Imbalances: Verbally evaluate a given position using 4 key imbalances (Material, King Safety, Pawn Structure, Piece Activity) to formulate a 2-step plan within 3 minutes.
+
+The Bishop Pair: Convert a middlegame position possessing the "Bishop Pair advantage" in an open position against an instructor, ensuring neither Bishop is traded for a Knight for at least 15 moves.
+
+Level 8: Advanced Tactical Motifs & Endgame Mastery
+Module 15: Complex Tactical Combinations
+Multi-Motif Tactics: Solve 5 puzzles involving a combination of at least two tactical motifs (e.g., a deflection that leads to a fork) within 20 minutes, scoring at least 80%.
+
+The Windmill: Successfully execute a "Windmill" tactic (sequential discovered checks) in 2 out of 2 guided puzzle scenarios within a total of 5 minutes.
+
+Interference & Clearance: Solve 4 out of 5 puzzles focusing on interference (blocking a defending piece's path) or clearance sacrifices (vacating a square for a better piece) within 15 minutes.
+
+Module 16: Rook Endgames & Practical Drawing Techniques
+The Lucena Position (Mastery): Correctly execute the Lucena winning procedure ("building a bridge") against an instructor playing the defensive side, completing the win within 15 moves on 3 consecutive attempts.
+
+The Philidor Position (Mastery): Accurately execute the Philidor drawing method against an instructor, holding the draw for at least 20 moves without blundering the structure on 2 consecutive attempts.
+
+Active Rook Defense: In 3 distinct losing Rook + Pawn endgames, identify the only move that maintains maximum Rook activity (checking distance) rather than passive defense, scoring 3/3 within 5 minutes.
+
+Level 9: Opening Repertoires & Positional Mastery
+Module 17: Building an Opening Repertoire
+Repertoire Memorization: Memorize and physically play the first 7 moves of one chosen White opening system and two Black defenses against an instructor, with zero inaccuracies across 3 random tests.
+
+Handling Deviations: When faced with a deviation from their opening preparation on move 4 by an instructor, calculate and play a principle-based developing move within 2 minutes.
+
+Opening to Middlegame Transition: Correctly identify the primary middlegame goal (e.g., "attack on the queenside," "control the center") of their chosen White opening and verbally explain it within 1 minute.
+
+Module 18: Advanced Positional Concepts
+Weak Color Complexes: Identify and verbally explain an opponent's "weak color complex" (e.g., weak light squares) in 3 distinct board diagrams, suggesting a piece maneuver to exploit it within 5 minutes.
+
+Prophylactic Thinking: Apply prophylaxis by correctly guessing the opponent's primary threat and playing a preventative move in 4 out of 5 puzzle scenarios within 10 minutes.
+
+Good vs. Bad Bishops: Given 5 pawn structures, correctly label the Bishops on the board as "Good" or "Bad" based on their restriction by friendly pawns, scoring 100% within 3 minutes.
+
+Level 10: Tournament Competitor (Mastery & Psychology)
+Module 19: Advanced Endgame Conversions
+Queen vs. Rook: Successfully convert a Queen vs. Rook endgame into a forced checkmate or skewer win against a computer engine (Level 6+) within the 50-move limit in 2 out of 3 attempts.
+
+Pawn Races: Evaluate 5 pawn-race endgames, correctly identifying which side promotes first and whether it promotes with check, entirely in their head without moving the pieces, scoring 100% in 15 minutes.
+
+Triangulation & Zugzwang: Solve 3 out of 3 endgame puzzles requiring King triangulation to lose a tempo and place the opponent in Zugzwang within 10 minutes.
+
+Module 20: Psychological Resilience & Time Management
+Time Management (Clock Discipline): During a 30-minute supervised game, manage the clock effectively by maintaining a time differential of no more than 5 minutes behind the opponent by move 20.
+
+Independent Game Annotation: After a loss in a practice tournament setting, independently annotate the game using algebraic notation, identifying the exact move where the engine evaluation shifted by more than -1.5, within a 20-minute post-game session.
+
+Recovery from Blunders: In a supervised sparring game, upon realizing a material disadvantage (down -2 or more), shift to a "complication strategy" by finding and playing the move that maximizes tactical complexity, verifiable by post-game engine analysis, within 3 minutes of the blunder.

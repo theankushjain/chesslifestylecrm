@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare, Menu, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import NotificationBell from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin"] },
@@ -63,9 +64,12 @@ export default function Layout() {
             <div className="text-xs text-muted-foreground">Signed in as</div>
             <div className="text-sm font-medium truncate flex items-center justify-between">
               {user.name}
-              <NavLink to="/profile" className="text-muted-foreground hover:text-primary transition-colors" title="My Profile">
-                <UserCog className="w-4 h-4" />
-              </NavLink>
+              <div className="flex items-center gap-2">
+                <NotificationBell />
+                <NavLink to="/profile" className="text-muted-foreground hover:text-primary transition-colors" title="My Profile">
+                  <UserCog className="w-4 h-4" />
+                </NavLink>
+              </div>
             </div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground mt-0.5">{user.role}</div>
           </div>
@@ -82,6 +86,7 @@ export default function Layout() {
           <h1 className="text-xl font-serif font-semibold leading-none -mt-0.5">CRM</h1>
         </div>
         <div className="flex items-center gap-1">
+          <NotificationBell />
           <NavLink to="/profile" className="p-2 text-muted-foreground hover:text-foreground">
             <UserCog className="w-5 h-5" />
           </NavLink>

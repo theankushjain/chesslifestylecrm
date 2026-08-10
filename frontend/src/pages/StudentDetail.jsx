@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, studentPortalCredentialsMessage, ageFromDob, nextBirthdayDays } from "@/lib/whatsapp";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import LearningProgressTab from "./LearningProgressTab";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -192,70 +194,87 @@ export default function StudentDetail() {
         <StudentAccountDialog student={student} onSaved={() => { setAccountOpen(false); load(); }} />
       </Dialog>
 
-      {/* Quick attendance */}
-      <div className="mb-6">
-        <div className="label-over mb-2">Mark today's attendance</div>
-        <div className="grid grid-cols-3 gap-2">
-          <Button onClick={() => markAttendance("present")} data-testid="mark-present" className="rounded-none bg-success hover:bg-success/90">Present</Button>
-          <Button onClick={() => markAttendance("absent")} data-testid="mark-absent" variant="destructive" className="rounded-none">Absent</Button>
-          <Button onClick={() => markAttendance("late")} data-testid="mark-late" className="rounded-none bg-warning hover:bg-warning/90 text-white">Late</Button>
-        </div>
-      </div>
-
-      {/* Payments */}
-      <div className="mb-6">
-        <div className="label-over mb-2">Fees</div>
-        <div className="bg-white border border-border/60 divide-y divide-border/60">
-          {payments.map((p) => (
-            <div key={p.id} className="flex items-center justify-between p-4">
-              <div>
-                <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
-                <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {p.status !== "paid" ? (
-                  <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-none">Mark paid</Button>
-                ) : (
-                  <span className="text-xs text-success uppercase tracking-widest">Paid</span>
-                )}
-                <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="w-full justify-start rounded-none border-b border-border/60 bg-transparent p-0 mb-6 h-auto">
+          <TabsTrigger value="overview" className="rounded-none py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="progress" className="rounded-none py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
+            Learning Progress
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="m-0 space-y-6">
+          {/* Quick attendance */}
+          <div>
+            <div className="label-over mb-2">Mark today's attendance</div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button onClick={() => markAttendance("present")} data-testid="mark-present" className="rounded-none bg-success hover:bg-success/90">Present</Button>
+              <Button onClick={() => markAttendance("absent")} data-testid="mark-absent" variant="destructive" className="rounded-none">Absent</Button>
+              <Button onClick={() => markAttendance("late")} data-testid="mark-late" className="rounded-none bg-warning hover:bg-warning/90 text-white">Late</Button>
             </div>
-          ))}
-          {payments.length === 0 && <div className="p-4 text-sm text-muted-foreground">No fee records.</div>}
-        </div>
-      </div>
+          </div>
 
-      {/* Attendance history */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div className="label-over !mb-0">Attendance (recent)</div>
-          <Link to="/attendance" className="text-xs uppercase tracking-widest text-primary hover:underline">
-            View Report
-          </Link>
-        </div>
-        <div className="bg-white border border-border/60 divide-y divide-border/60">
-          {attendance.slice(0, 10).map((a) => {
-            const Icon = STATUS_ICONS[a.status]?.icon || Clock;
-            const color = STATUS_ICONS[a.status]?.color || "";
-            return (
-              <div key={a.id} className="flex items-center justify-between p-3">
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${color}`} />
+          {/* Payments */}
+          <div>
+            <div className="label-over mb-2">Fees</div>
+            <div className="bg-white border border-border/60 divide-y divide-border/60">
+              {payments.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-4">
                   <div>
-                    <div className="text-sm">{a.date}</div>
-                    <div className="text-xs text-muted-foreground">{a.topic || "—"}</div>
+                    <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
+                    <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {p.status !== "paid" ? (
+                      <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-none">Mark paid</Button>
+                    ) : (
+                      <span className="text-xs text-success uppercase tracking-widest">Paid</span>
+                    )}
+                    <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                <span className="text-xs uppercase tracking-widest">{a.status}</span>
-              </div>
-            );
-          })}
-          {attendance.length === 0 && <div className="p-4 text-sm text-muted-foreground">No records.</div>}
-        </div>
-      </div>
+              ))}
+              {payments.length === 0 && <div className="p-4 text-sm text-muted-foreground">No fee records.</div>}
+            </div>
+          </div>
+
+          {/* Attendance history */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="label-over !mb-0">Attendance (recent)</div>
+              <Link to="/attendance" className="text-xs uppercase tracking-widest text-primary hover:underline">
+                View Report
+              </Link>
+            </div>
+            <div className="bg-white border border-border/60 divide-y divide-border/60">
+              {attendance.slice(0, 10).map((a) => {
+                const Icon = STATUS_ICONS[a.status]?.icon || Clock;
+                const color = STATUS_ICONS[a.status]?.color || "";
+                return (
+                  <div key={a.id} className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${color}`} />
+                      <div>
+                        <div className="text-sm">{a.date}</div>
+                        <div className="text-xs text-muted-foreground">{a.topic || "—"}</div>
+                      </div>
+                    </div>
+                    <span className="text-xs uppercase tracking-widest">{a.status}</span>
+                  </div>
+                );
+              })}
+              {attendance.length === 0 && <div className="p-4 text-sm text-muted-foreground">No records.</div>}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="progress" className="m-0">
+          <LearningProgressTab student={student} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
