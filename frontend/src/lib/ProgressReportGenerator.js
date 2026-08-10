@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 export function downloadProgressReport(student, outcomes) {
   const doc = new jsPDF();
@@ -22,18 +22,19 @@ export function downloadProgressReport(student, outcomes) {
       o.completed_date ? new Date(o.completed_date).toLocaleDateString() : ""
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 45,
       head: [['Level', 'Module', 'Learning Outcome', 'Completed']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [30, 41, 59] }, // slate-800 for header
+      styles: { fontSize: 10, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [248, 250, 252] }, // slate-50
       columnStyles: { 
         0: { cellWidth: 25 },
         1: { cellWidth: 25 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 25 }
+        3: { cellWidth: 25, textColor: [249, 115, 22], fontStyle: 'bold' } // orange-500
       }
     });
   }
