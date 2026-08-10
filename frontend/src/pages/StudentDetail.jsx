@@ -149,9 +149,9 @@ export default function StudentDetail() {
               </button>
             )}
             {canEdit && (
-               <div className="flex gap-2 w-full md:w-auto">
-              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-none flex-1 md:flex-none">Create Account</Button>
-              <Button onClick={() => setEditOpen(true)} className="rounded-none flex-1 md:flex-none">
+               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">Create Account</Button>
+              <Button onClick={() => setEditOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">
                 <Pencil className="w-4 h-4 mr-2" /> Edit
               </Button>
             </div>)}
