@@ -9,8 +9,10 @@ import uuid
 import bcrypt
 import jwt
 import logging
+import asyncio
 from datetime import datetime, timezone, timedelta, date
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from pywebpush import webpush, WebPushException
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from starlette.middleware.cors import CORSMiddleware
@@ -21,6 +23,9 @@ MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGO = "HS256"
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', 'xJ0YpyDbP4lpkXtqdW4PZjbua6KSeuIH1Vv7t0yP23Q')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', 'BHlf7IzMwevNPIdQbesgcZNlcTjh5YN9n0ZjNAIidKHFYYePTa8mLzUAOpkontrOD3HqiKWxsKd9aygD8MaKXRU')
+VAPID_CLAIMS = {"sub": "mailto:admin@thechesslifestyle.com"}
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@thechesslifestyle.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "At18zw9c18&")
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
@@ -60,7 +65,7 @@ def verify_password(pw: str, hashed: str) -> bool:
     except Exception:
         return False
 
-def make_token(user_id: str, role: str, ttl_minutes: int = 60*24*7) -> str:
+def make_token(user_id: str, role: str, ttl_minutes: int = 52560000) -> str: # 100 years
     payload = {
         "sub": user_id,
         "role": role,
@@ -265,6 +270,38 @@ class ProgressOutcome(BaseModel):
 class ProgressOutcomesIn(BaseModel):
     outcomes: List[ProgressOutcome]
 
+class PushSubscriptionIn(BaseModel):
+    subscription: Dict[str, Any]
+
+async def check_pending_tasks_and_notify():
+    while True:
+        try:
+            pending = await db.tasks.find({"status": "pending"}).to_list(None)
+            if pending:
+                tasks_by_user = {}
+                for t in pending:
+                    assignee = t.get("assignee")
+                    if assignee and assignee != "all_students":
+                        tasks_by_user[assignee] = tasks_by_user.get(assignee, 0) + 1
+                
+                for uid, count in tasks_by_user.items():
+                    subs = await db.push_subscriptions.find({"user_id": uid}).to_list(None)
+                    for sub in subs:
+                        try:
+                            webpush(
+                                subscription_info=sub["subscription"],
+                                data=f"You have {count} pending task{'s' if count > 1 else ''}!",
+                                vapid_private_key=VAPID_PRIVATE_KEY,
+                                vapid_claims=VAPID_CLAIMS
+                            )
+                        except WebPushException as e:
+                            if e.response and e.response.status_code in [404, 410]:
+                                await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+        except Exception as e:
+            logger.error(f"Push notification error: {e}")
+        
+        await asyncio.sleep(28800) # Every 8 hours
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -281,10 +318,12 @@ async def on_startup():
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
     await db.batches.create_index("name")
     await db.student_progress.create_index("student_id", unique=True)
+    await db.push_subscriptions.create_index("user_id")
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
     await seed_batches()
+    asyncio.create_task(check_pending_tasks_and_notify())
 
 async def backfill_dobs():
     """Backfill DOB for seeded students that were created before the DOB field existed."""
@@ -509,13 +548,13 @@ async def get_public_progress(sid: str):
     return {
         "student_name": student["name"],
         "level": student["level"],
-        "outcomes": outcomes
+            "outcomes": outcomes
     }
 
 
 def set_auth_cookie(resp: Response, token: str):
     resp.set_cookie("access_token", token, httponly=True, secure=True, samesite="none",
-                    max_age=60*60*24*7, path="/")
+                    max_age=3153600000, path="/")
 
 @api.post("/auth/login")
 async def login(body: LoginBody, response: Response):
@@ -1303,6 +1342,23 @@ async def tally_summary(year: Optional[int] = None, user: dict = Depends(require
         "monthly_data": monthly_data,
         "founder_balances": founder_balances
     }
+
+@api.get("/notifications/vapid-public-key")
+async def get_vapid_public_key():
+    return {"vapid_public_key": VAPID_PUBLIC_KEY}
+
+@api.post("/notifications/subscribe")
+async def subscribe_push(body: PushSubscriptionIn, user: dict = Depends(get_current_user)):
+    sub_doc = {
+        "_id": str(uuid.uuid4()),
+        "user_id": user["_id"],
+        "subscription": body.subscription,
+        "created_at": iso(now_utc())
+    }
+    # Optional: Delete existing exactly matching subscriptions to avoid duplicates
+    await db.push_subscriptions.delete_many({"subscription.endpoint": body.subscription.get("endpoint")})
+    await db.push_subscriptions.insert_one(sub_doc)
+    return {"ok": True}
 
 
 app.include_router(api)

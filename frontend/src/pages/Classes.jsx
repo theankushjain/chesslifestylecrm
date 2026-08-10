@@ -67,10 +67,10 @@ export default function Classes() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="font-mono">{b.schedule.length}x / week</span>
+                  <span className="font-mono">{Array.isArray(b.schedule) ? b.schedule.length : 0}x / week</span>
                 </div>
               </div>
-              {b.schedule.length > 0 && (
+              {Array.isArray(b.schedule) && b.schedule.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {b.schedule.map((s, i) => (
                     <span key={i} className="text-[10px] uppercase tracking-widest bg-secondary px-2 py-0.5 border border-border/60">

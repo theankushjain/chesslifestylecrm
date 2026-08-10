@@ -101,21 +101,21 @@ export default function BatchDetail() {
   };
 
   const addSlot = async () => {
-    const updated = [...(batch.schedule || []), { day: "mon", time: "17:00", duration_min: 60 }];
+    const updated = [...(Array.isArray(batch.schedule) ? batch.schedule : []), { day: "mon", time: "17:00", duration_min: 60 }];
     try {
       const { data } = await api.patch(`/batches/${id}`, { schedule: updated });
       setBatch(data);
     } catch (e) { toast.error(formatApiError(e)); }
   };
   const updateSlot = async (idx, patch) => {
-    const updated = batch.schedule.map((s, i) => (i === idx ? { ...s, ...patch } : s));
+    const updated = (Array.isArray(batch.schedule) ? batch.schedule : []).map((s, i) => (i === idx ? { ...s, ...patch } : s));
     try {
       const { data } = await api.patch(`/batches/${id}`, { schedule: updated });
       setBatch(data);
     } catch (e) { toast.error(formatApiError(e)); }
   };
   const removeSlot = async (idx) => {
-    const updated = batch.schedule.filter((_, i) => i !== idx);
+    const updated = (Array.isArray(batch.schedule) ? batch.schedule : []).filter((_, i) => i !== idx);
     try {
       const { data } = await api.patch(`/batches/${id}`, { schedule: updated });
       setBatch(data);
@@ -243,7 +243,7 @@ export default function BatchDetail() {
           </Button>
         </div>
         <div className="space-y-2">
-          {(batch.schedule || []).map((slot, i) => (
+          {(Array.isArray(batch.schedule) ? batch.schedule : []).map((slot, i) => (
             <div key={i} className="flex items-center gap-2 border border-border/60 p-2">
               <Select value={slot.day} onValueChange={(v) => updateSlot(i, { day: v })}>
                 <SelectTrigger className="rounded-none w-28" data-testid={`slot-day-${i}`}><SelectValue /></SelectTrigger>
@@ -263,7 +263,7 @@ export default function BatchDetail() {
               </button>
             </div>
           ))}
-          {(!batch.schedule || batch.schedule.length === 0) && (
+          {(!Array.isArray(batch.schedule) || batch.schedule.length === 0) && (
             <div className="p-4 text-center text-sm text-muted-foreground border border-dashed border-border/60">
               No schedule yet. Add a slot to define when this batch meets.
             </div>

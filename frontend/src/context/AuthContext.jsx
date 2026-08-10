@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { subscribeUserToPush } from "@/lib/push";
 
 const AuthContext = createContext(null);
 
@@ -14,6 +15,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data } = await api.get("/auth/me");
         setUser(data);
+        if ('Notification' in window && Notification.permission === 'granted') {
+           subscribeUserToPush();
+        }
       } catch {
         localStorage.removeItem("tcl_token");
       } finally {
@@ -27,6 +31,14 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/auth/login", { email, password });
     localStorage.setItem("tcl_token", data.token);
     setUser(data.user);
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted') {
+        subscribeUserToPush();
+      }
+    }
     return data.user;
   };
 
