@@ -17,7 +17,7 @@ export default function NotificationBell() {
     
     const fetchAlerts = async () => {
       try {
-        const data = await api.get("/alerts");
+        const { data } = await api.get("/alerts");
         setAlerts(data);
       } catch (err) {
         console.error("Failed to fetch alerts:", err);
