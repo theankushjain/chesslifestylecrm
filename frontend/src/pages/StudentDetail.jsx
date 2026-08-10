@@ -99,7 +99,7 @@ export default function StudentDetail() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <div className="label-over !mb-0">{student.level}</div>
-              {student.tags?.map((t, i) => (
+              {Array.isArray(student.tags) && student.tags.map((t, i) => (
                 <span key={i} className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded">{t}</span>
               ))}
             </div>
@@ -288,7 +288,7 @@ function StudentEditDialog({ student, onSaved }) {
     monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
     dob: student.dob || "", tags: student.tags || []
   });
-  const [tagsStr, setTagsStr] = useState((student.tags || []).join(", "));
+  const [tagsStr, setTagsStr] = useState((Array.isArray(student.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {

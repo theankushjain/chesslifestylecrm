@@ -81,7 +81,7 @@ export default function Students() {
                 <div className="min-w-0">
                   <div className="font-medium flex items-center gap-2 truncate">
                     {s.name}
-                    {s.tags?.length > 0 && (
+                    {Array.isArray(s.tags) && s.tags.length > 0 && (
                       <span className="flex items-center gap-1">
                         {s.tags.slice(0, 2).map((t, i) => (
                           <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">
@@ -137,7 +137,7 @@ function StudentDialog({ onSaved, student }) {
     name: "", phone: "", parent_name: "", parent_phone: "",
     level: "Beginner", monthly_fee: 2500, notes: "", status: "active", dob: "", tags: []
   });
-  const [tagsStr, setTagsStr] = useState((student?.tags || []).join(", "));
+  const [tagsStr, setTagsStr] = useState((Array.isArray(student?.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {

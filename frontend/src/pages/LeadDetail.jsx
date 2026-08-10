@@ -77,9 +77,9 @@ export default function LeadDetail() {
       <div className="bg-white border border-border/60 p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="label-over !mb-0">Lead</div>
-              {lead.tags?.map((t, i) => (
+            <div className="flex items-center gap-2 mt-2">
+              <div className="label-over !mb-0 text-[10px] font-semibold">{lead.source}</div>
+              {Array.isArray(lead.tags) && lead.tags.map((t, i) => (
                 <span key={i} className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded">{t}</span>
               ))}
             </div>
@@ -223,7 +223,7 @@ function LeadEditDialog({ lead, onSaved }) {
     source: lead.source || "Website", notes: lead.notes || "",
     next_follow_up: lead.next_follow_up || "", tags: lead.tags || []
   });
-  const [tagsStr, setTagsStr] = useState((lead.tags || []).join(", "));
+  const [tagsStr, setTagsStr] = useState((Array.isArray(lead.tags) ? lead.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
 
   const save = async () => {

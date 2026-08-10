@@ -135,16 +135,20 @@ export default function Leads() {
                 <Link to={`/leads/${l.id}`} data-testid={`lead-row-${l.id}`}
                   className="flex-1 min-w-0 p-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <div className="font-medium">{l.name}</div>
-                    <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${stage?.color}`}>{stage?.label}</span>
-                    {l.tags?.length > 0 && (
-                      <>
+                    <div className="font-medium flex items-center gap-2 truncate">
+                    {l.name}
+                    {Array.isArray(l.tags) && l.tags.length > 0 && (
+                      <span className="flex items-center gap-1">
                         {l.tags.slice(0, 2).map((t, i) => (
-                          <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">{t}</span>
+                          <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">
+                            {t}
+                          </span>
                         ))}
                         {l.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{l.tags.length - 2}</span>}
-                      </>
+                      </span>
                     )}
+                  </div>
+                    <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${stage?.color}`}>{stage?.label}</span>
                     {followUpOverdue && (
                       <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-destructive text-destructive-foreground">Follow-up</span>
                     )}
