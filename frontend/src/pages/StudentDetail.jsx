@@ -34,6 +34,7 @@ export default function StudentDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
   const canEdit = user.role === "admin" || user.role === "staff";
   const canDelete = user.role === "admin";
 
@@ -50,10 +51,10 @@ export default function StudentDetail() {
   useEffect(() => { load(); }, [id]);
 
   const markAttendance = async (status) => {
-    const today = new Date().toISOString().slice(0, 10);
     try {
-      await api.post("/attendance", { student_id: id, date: today, status, topic: "Class" });
-      toast.success(`Marked ${status} for today`);
+      await api.post("/attendance", { student_id: id, date: attendanceDate, status, topic: "Class" });
+      const isToday = attendanceDate === new Date().toISOString().slice(0, 10);
+      toast.success(`Marked ${status} for ${isToday ? "today" : attendanceDate}`);
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
@@ -207,7 +208,17 @@ export default function StudentDetail() {
         <TabsContent value="overview" className="m-0 space-y-6">
           {/* Quick attendance */}
           <div>
-            <div className="label-over mb-2">Mark today's attendance</div>
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+              <div className="label-over !mb-0">Mark attendance</div>
+              <Input
+                type="date"
+                value={attendanceDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                data-testid="attendance-date-picker"
+                className="rounded-none w-auto"
+              />
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <Button onClick={() => markAttendance("present")} data-testid="mark-present" className="rounded-none bg-success hover:bg-success/90">Present</Button>
               <Button onClick={() => markAttendance("absent")} data-testid="mark-absent" variant="destructive" className="rounded-none">Absent</Button>
