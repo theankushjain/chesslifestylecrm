@@ -1366,7 +1366,7 @@ async def subscribe_push(body: PushSubscriptionIn, user: dict = Depends(get_curr
     return {"ok": True}
 
 @api.post("/notifications/push")
-async def send_custom_push(body: CustomPushIn, user: dict = Depends(require_admin)):
+async def send_custom_push(body: CustomPushIn, user: dict = Depends(require_roles("admin"))):
     target = body.target
     query = {}
     if target == "all":
@@ -1396,7 +1396,7 @@ async def send_custom_push(body: CustomPushIn, user: dict = Depends(require_admi
     return {"ok": True, "sent": sent}
 
 @api.post("/notifications/trigger-pending")
-async def trigger_pending(user: dict = Depends(require_admin)):
+async def trigger_pending(user: dict = Depends(require_roles("admin"))):
     await notify_pending_tasks()
     return {"ok": True}
 
