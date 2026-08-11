@@ -273,33 +273,39 @@ class ProgressOutcomesIn(BaseModel):
 class PushSubscriptionIn(BaseModel):
     subscription: Dict[str, Any]
 
+class CustomPushIn(BaseModel):
+    target: str
+    message: str
+
+async def notify_pending_tasks():
+    try:
+        pending = await db.tasks.find({"status": "pending"}).to_list(None)
+        if pending:
+            tasks_by_user = {}
+            for t in pending:
+                assignee = t.get("assignee")
+                if assignee and assignee != "all_students":
+                    tasks_by_user[assignee] = tasks_by_user.get(assignee, 0) + 1
+            
+            for uid, count in tasks_by_user.items():
+                subs = await db.push_subscriptions.find({"user_id": uid}).to_list(None)
+                for sub in subs:
+                    try:
+                        webpush(
+                            subscription_info=sub["subscription"],
+                            data=f"You have {count} pending task{'s' if count > 1 else ''}!",
+                            vapid_private_key=VAPID_PRIVATE_KEY,
+                            vapid_claims=VAPID_CLAIMS
+                        )
+                    except WebPushException as e:
+                        if e.response and e.response.status_code in [404, 410]:
+                            await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+    except Exception as e:
+        logger.error(f"Push notification error: {e}")
+
 async def check_pending_tasks_and_notify():
     while True:
-        try:
-            pending = await db.tasks.find({"status": "pending"}).to_list(None)
-            if pending:
-                tasks_by_user = {}
-                for t in pending:
-                    assignee = t.get("assignee")
-                    if assignee and assignee != "all_students":
-                        tasks_by_user[assignee] = tasks_by_user.get(assignee, 0) + 1
-                
-                for uid, count in tasks_by_user.items():
-                    subs = await db.push_subscriptions.find({"user_id": uid}).to_list(None)
-                    for sub in subs:
-                        try:
-                            webpush(
-                                subscription_info=sub["subscription"],
-                                data=f"You have {count} pending task{'s' if count > 1 else ''}!",
-                                vapid_private_key=VAPID_PRIVATE_KEY,
-                                vapid_claims=VAPID_CLAIMS
-                            )
-                        except WebPushException as e:
-                            if e.response and e.response.status_code in [404, 410]:
-                                await db.push_subscriptions.delete_one({"_id": sub["_id"]})
-        except Exception as e:
-            logger.error(f"Push notification error: {e}")
-        
+        await notify_pending_tasks()
         await asyncio.sleep(28800) # Every 8 hours
 
 
@@ -1355,9 +1361,43 @@ async def subscribe_push(body: PushSubscriptionIn, user: dict = Depends(get_curr
         "subscription": body.subscription,
         "created_at": iso(now_utc())
     }
-    # Optional: Delete existing exactly matching subscriptions to avoid duplicates
     await db.push_subscriptions.delete_many({"subscription.endpoint": body.subscription.get("endpoint")})
     await db.push_subscriptions.insert_one(sub_doc)
+    return {"ok": True}
+
+@api.post("/notifications/push")
+async def send_custom_push(body: CustomPushIn, user: dict = Depends(require_admin)):
+    target = body.target
+    query = {}
+    if target == "all":
+        pass 
+    elif target.startswith("role:"):
+        role = target.split(":")[1]
+        users = await db.users.find({"role": role}).to_list(None)
+        uids = [u["_id"] for u in users]
+        query = {"user_id": {"$in": uids}}
+    else:
+        query = {"user_id": target}
+    
+    subs = await db.push_subscriptions.find(query).to_list(None)
+    sent = 0
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info=sub["subscription"],
+                data=body.message,
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
+            )
+            sent += 1
+        except WebPushException as e:
+            if e.response and e.response.status_code in [404, 410]:
+                await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+    return {"ok": True, "sent": sent}
+
+@api.post("/notifications/trigger-pending")
+async def trigger_pending(user: dict = Depends(require_admin)):
+    await notify_pending_tasks()
     return {"ok": True}
 
 

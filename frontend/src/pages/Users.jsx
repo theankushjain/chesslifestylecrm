@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCog, Trash2, Edit2, Check, X } from "lucide-react";
+import { UserCog, Trash2, Edit2, Check, X, BellRing, Send } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Users() {
@@ -24,6 +24,9 @@ export default function Users() {
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  const [pushForm, setPushForm] = useState({ target: "all", message: "" });
+  const [pushing, setPushing] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -80,6 +83,31 @@ export default function Users() {
       await api.delete(`/users/${uid}`);
       toast.success("User deleted");
       loadUsers();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    }
+  };
+
+  const handleSendPush = async (e) => {
+    e.preventDefault();
+    if (!pushForm.message.trim()) return toast.error("Message cannot be empty");
+    setPushing(true);
+    try {
+      const res = await api.post("/notifications/push", pushForm);
+      toast.success(`Push sent to ${res.data.sent} active devices!`);
+      setPushForm({ ...pushForm, message: "" });
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const triggerPendingReminders = async () => {
+    if (!window.confirm("This will instantly send push notifications to everyone with pending tasks. Proceed?")) return;
+    try {
+      await api.post("/notifications/trigger-pending");
+      toast.success("Pending tasks evaluation triggered!");
     } catch (err) {
       toast.error(formatApiError(err));
     }
@@ -206,6 +234,59 @@ export default function Users() {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 mt-8">
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="bg-primary/5 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <BellRing className="w-5 h-5 text-primary" />
+                  Push Notifications Admin
+                </CardTitle>
+                <CardDescription>Send custom alerts directly to staff and student devices.</CardDescription>
+              </div>
+              <Button variant="outline" onClick={triggerPendingReminders} className="border-primary/50 text-primary hover:bg-primary/10">
+                Trigger Pending Task Reminders Now
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSendPush} className="flex flex-col md:flex-row gap-4 items-start">
+              <div className="space-y-1.5 w-full md:w-1/4 shrink-0">
+                <Label>Target Audience</Label>
+                <Select value={pushForm.target} onValueChange={(v) => setPushForm({ ...pushForm, target: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Everyone</SelectItem>
+                    <SelectItem value="role:admin">All Admins</SelectItem>
+                    <SelectItem value="role:staff">All Staff</SelectItem>
+                    <SelectItem value="role:student">All Students</SelectItem>
+                    {users.map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 flex-1 w-full">
+                <Label>Message</Label>
+                <div className="flex gap-2 w-full">
+                  <Input 
+                    required 
+                    placeholder="Type your alert message here..." 
+                    value={pushForm.message} 
+                    onChange={(e) => setPushForm({ ...pushForm, message: e.target.value })} 
+                  />
+                  <Button type="submit" disabled={pushing} className="shrink-0">
+                    <Send className="w-4 h-4 mr-2" />
+                    {pushing ? "Sending..." : "Send Push"}
+                  </Button>
+                </div>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>
