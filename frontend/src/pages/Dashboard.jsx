@@ -3,6 +3,9 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle, Cake, CalendarDays, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { subscribeUserToPush } from "@/lib/push";
+import { Button } from "@/components/ui/button";
+import { Bell, BellOff, BellRing } from "lucide-react";
 
 const SEVERITY = {
   high: { color: "border-l-destructive", label: "URGENT", tint: "text-destructive" },
@@ -23,6 +26,21 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [todayClasses, setTodayClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notifState, setNotifState] = useState('Notification' in window ? Notification.permission : 'unsupported');
+
+  const handleNotificationClick = async () => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      const perm = await Notification.requestPermission();
+      setNotifState(perm);
+      if (perm === 'granted') {
+        subscribeUserToPush();
+      }
+    } else if (Notification.permission === 'granted') {
+      // Already granted, just ensure subscribed
+      subscribeUserToPush();
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -40,10 +58,25 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
-      <div className="mb-6 md:mb-10">
-        <div className="label-over">Dashboard</div>
-        <h1 className="text-4xl md:text-5xl font-serif">Good day, {user.name.split(" ")[0]}.</h1>
-        <p className="text-sm text-muted-foreground mt-1">Here's what needs your attention today.</p>
+      <div className="mb-6 md:mb-10 flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <div className="label-over">Dashboard</div>
+          <h1 className="text-4xl md:text-5xl font-serif">Good day, {user.name.split(" ")[0]}.</h1>
+          <p className="text-sm text-muted-foreground mt-1">Here's what needs your attention today.</p>
+        </div>
+        
+        {notifState !== 'unsupported' && (
+          <Button 
+            variant="outline" 
+            onClick={handleNotificationClick}
+            disabled={notifState === 'denied'}
+            className={`rounded-none flex items-center gap-2 ${notifState === 'granted' ? 'border-primary text-primary' : ''}`}
+          >
+            {notifState === 'granted' && <><BellRing className="w-4 h-4" /> Notifications Enabled</>}
+            {notifState === 'default' && <><Bell className="w-4 h-4" /> Enable Notifications</>}
+            {notifState === 'denied' && <><BellOff className="w-4 h-4" /> Notifications Blocked</>}
+          </Button>
+        )}
       </div>
 
       {/* Today's Classes */}
