@@ -54,6 +54,8 @@ Ladder Checkmate: Successfully execute a checkmate using two Rooks against a lon
 
 Queen & King Mate: Successfully execute a checkmate using a Queen and King against a lone King against an instructor within a 25-move limit.
 
+Single Rook Mate: Successfully execute a checkmate using a single Rook and King against a lone King against an instructor within a 35-move limit.
+
 Level 3: Intermediate
 Module 5: Board Vision & Legal Play
 Game Recording: During a 20-minute practice game, accurately record the first 15 moves for both sides on a scoresheet using algebraic notation with a maximum of 1 error.
@@ -123,6 +125,8 @@ The Opposition: Verbally define "The Opposition" and demonstrate taking the oppo
 
 King & Pawn vs. King: Successfully promote a single pawn and deliver checkmate starting from a winning King + Pawn vs. King position against an instructor within 30 moves.
 
+Two Bishops Mate: Successfully execute a checkmate using two Bishops and a King against a lone King against an instructor within a 40-move limit.
+
 Lucena & Philidor Positions (Intro): Properly set up the standard Lucena (winning) and Philidor (drawing) Rook + Pawn endgames on a physical board from memory in under 2 minutes.
 
 Module 12: Practical Play & Tournament Skills
@@ -180,6 +184,10 @@ Good vs. Bad Bishops: Given 5 pawn structures, correctly label the Bishops on th
 Level 10: Tournament Competitor (Mastery & Psychology)
 Module 19: Advanced Endgame Conversions
 Queen vs. Rook: Successfully convert a Queen vs. Rook endgame into a forced checkmate or skewer win against a computer engine (Level 6+) within the 50-move limit in 2 out of 3 attempts.
+
+Knight & Bishop Mate: Successfully execute the complex checkmate using a Knight, Bishop, and King against a lone King against a computer engine (Level 6+) within the 50-move limit in 2 out of 3 attempts.
+
+Queen vs. Advanced Pawn: Successfully demonstrate the winning technique (or draw depending on the pawn file) of a Queen against a 7th-rank pawn against an instructor in 3 distinct scenarios.
 
 Pawn Races: Evaluate 5 pawn-race endgames, correctly identifying which side promotes first and whether it promotes with check, entirely in their head without moving the pieces, scoring 100% in 15 minutes.
 

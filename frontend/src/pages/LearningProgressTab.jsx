@@ -184,8 +184,8 @@ export default function LearningProgressTab({ student }) {
                               </div>
                             </div>
                             
-                            {/* Insert button appears on hover */}
-                            <div className="mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Insert button appears on hover (desktop) or always (mobile) */}
+                            <div className="mt-3 flex justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 

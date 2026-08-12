@@ -476,13 +476,7 @@ async def seed_demo_data():
     logger.info("Demo data seeded")
 
 
-_PROGRESS_TEMPLATE_CACHE = None
-
 def get_progress_template():
-    global _PROGRESS_TEMPLATE_CACHE
-    if _PROGRESS_TEMPLATE_CACHE is not None:
-        return _PROGRESS_TEMPLATE_CACHE
-    
     template = []
     current_level = ""
     current_module = ""
@@ -508,16 +502,13 @@ def get_progress_template():
                     "completed": False,
                     "completed_date": None
                 })
-    _PROGRESS_TEMPLATE_CACHE = template
     return template
 
-@api.get("/students/{sid}/progress")
-async def get_student_progress(sid: str, user: dict = Depends(get_current_user)):
-    if user["role"] == "student" and user.get("linked_student_id") != sid:
-        raise HTTPException(403, "Forbidden")
+async def sync_student_progress(sid: str):
+    template = get_progress_template()
     doc = await db.student_progress.find_one({"student_id": sid})
+    
     if not doc:
-        template = get_progress_template()
         outcomes = []
         for t in template:
             outcomes.append({**t, "id": str(uuid.uuid4())})
@@ -528,6 +519,31 @@ async def get_student_progress(sid: str, user: dict = Depends(get_current_user))
             "created_at": iso(now_utc())
         }
         await db.student_progress.insert_one(doc)
+    else:
+        existing_map = {o["text"]: o for o in doc.get("outcomes", [])}
+        new_outcomes = []
+        added = False
+        
+        for t in template:
+            if t["text"] in existing_map:
+                new_outcomes.append(existing_map[t["text"]])
+            else:
+                new_outcomes.append({**t, "id": str(uuid.uuid4())})
+                added = True
+                
+        if added:
+            doc["outcomes"] = new_outcomes
+            await db.student_progress.update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"outcomes": new_outcomes}}
+            )
+    return doc
+
+@api.get("/students/{sid}/progress")
+async def get_student_progress(sid: str, user: dict = Depends(get_current_user)):
+    if user["role"] == "student" and user.get("linked_student_id") != sid:
+        raise HTTPException(403, "Forbidden")
+    doc = await sync_student_progress(sid)
     return clean(doc)
 
 @api.put("/students/{sid}/progress")
@@ -548,13 +564,13 @@ async def get_public_progress(sid: str):
     student = await db.students.find_one({"_id": sid})
     if not student:
         raise HTTPException(404, "Not found")
-    progress = await db.student_progress.find_one({"student_id": sid})
-    outcomes = progress["outcomes"] if progress else []
+    progress = await sync_student_progress(sid)
+    outcomes = progress.get("outcomes", [])
     
     return {
         "student_name": student["name"],
         "level": student["level"],
-            "outcomes": outcomes
+        "outcomes": outcomes
     }
 
 
