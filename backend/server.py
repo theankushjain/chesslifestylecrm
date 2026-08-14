@@ -306,8 +306,170 @@ async def notify_pending_tasks():
 async def check_pending_tasks_and_notify():
     while True:
         await notify_pending_tasks()
+        await notify_unpaid_fees()
+        await notify_daily_classes()
+        await notify_lead_followups()
         await asyncio.sleep(28800) # Every 8 hours
 
+async def notify_lead_followups():
+    try:
+        today = date.today()
+        leads = await db.leads.find({"next_follow_up": {"$ne": None}}).to_list(None)
+        
+        due_count = 0
+        for l in leads:
+            if l.get("stage") in ("enrolled", "not_interested"):
+                continue
+            try:
+                fu = date.fromisoformat(l["next_follow_up"])
+            except Exception:
+                continue
+            if fu <= today:
+                due_count += 1
+                
+        if due_count > 0:
+            msg = f"Lead Follow-ups: You have {due_count} lead(s) to call today."
+            
+            users = await db.users.find({"role": "admin"}).to_list(None)
+            user_ids = [u["_id"] for u in users]
+            
+            subs = await db.push_subscriptions.find({"user_id": {"$in": user_ids}}).to_list(None)
+            for sub in subs:
+                try:
+                    webpush(
+                        subscription_info=sub["subscription"],
+                        data=msg,
+                        vapid_private_key=VAPID_PRIVATE_KEY,
+                        vapid_claims=VAPID_CLAIMS
+                    )
+                except WebPushException as e:
+                    if e.response and e.response.status_code in [404, 410]:
+                        await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+    except Exception as e:
+        logger.error(f"Push notification error (lead follow-ups): {e}")
+
+async def notify_unpaid_fees():
+    try:
+        today = date.today()
+        cur_year, cur_month = today.year, today.month
+        unpaid = await db.payments.find({
+            "year": cur_year, "month": cur_month,
+            "status": {"$in": ["unpaid", "overdue"]}
+        }).to_list(None)
+        
+        if not unpaid:
+            return
+            
+        count = len(unpaid)
+        total_amount = sum(p.get("amount", 0) for p in unpaid)
+        
+        admins = await db.users.find({"role": "admin"}).to_list(None)
+        admin_ids = [a["_id"] for a in admins]
+        
+        subs = await db.push_subscriptions.find({"user_id": {"$in": admin_ids}}).to_list(None)
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info=sub["subscription"],
+                    data=f"Unpaid Fees Reminder: {count} student(s) have unpaid fees this month, totaling Rs.{total_amount}.",
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException as e:
+                if e.response and e.response.status_code in [404, 410]:
+                    await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+    except Exception as e:
+        logger.error(f"Push notification error (unpaid fees): {e}")
+
+async def notify_daily_classes():
+    try:
+        today = date.today()
+        days_map = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        current_day = days_map[today.weekday()]
+        
+        batches = await db.batches.find().to_list(None)
+        classes_today = 0
+        for b in batches:
+            for s in b.get("schedule", []):
+                if s.get("day") == current_day:
+                    classes_today += 1
+        
+        if classes_today > 0:
+            msg = f"Schedule: You have {classes_today} class{'es' if classes_today > 1 else ''} to take today."
+        else:
+            msg = "Schedule: There are no classes scheduled for today."
+            
+        users = await db.users.find({"role": {"$in": ["admin", "staff"]}}).to_list(None)
+        user_ids = [u["_id"] for u in users]
+        
+        subs = await db.push_subscriptions.find({"user_id": {"$in": user_ids}}).to_list(None)
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info=sub["subscription"],
+                    data=msg,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException as e:
+                if e.response and e.response.status_code in [404, 410]:
+                    await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+    except Exception as e:
+        logger.error(f"Push notification error (daily classes): {e}")
+
+
+async def check_completed_classes_and_notify():
+    while True:
+        try:
+            now = datetime.now()
+            days_map = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            current_day = days_map[now.weekday()]
+            
+            batches = await db.batches.find().to_list(None)
+            users = None
+            
+            for b in batches:
+                for s in b.get("schedule", []):
+                    if s.get("day") == current_day:
+                        time_str = s.get("time") # "HH:MM"
+                        duration = s.get("duration_min", 60)
+                        if time_str:
+                            try:
+                                h, m = map(int, time_str.split(":"))
+                                total_mins = h * 60 + m + duration
+                                end_h = (total_mins // 60) % 24
+                                end_m = total_mins % 60
+                                
+                                # Compare end time with current time
+                                if end_h == now.hour and end_m == now.minute:
+                                    if users is None:
+                                        users = await db.users.find({"role": {"$in": ["admin", "staff"]}}).to_list(None)
+                                    
+                                    user_ids = [u["_id"] for u in users]
+                                    subs = await db.push_subscriptions.find({"user_id": {"$in": user_ids}}).to_list(None)
+                                    
+                                    msg = f"Class Ended: {b.get('name', 'A class')} just finished! Please remember to mark attendance and update the students' progress reports."
+                                    
+                                    for sub in subs:
+                                        try:
+                                            webpush(
+                                                subscription_info=sub["subscription"],
+                                                data=msg,
+                                                vapid_private_key=VAPID_PRIVATE_KEY,
+                                                vapid_claims=VAPID_CLAIMS
+                                            )
+                                        except WebPushException as e:
+                                            if e.response and e.response.status_code in [404, 410]:
+                                                await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Push notification error (completed classes): {e}")
+            
+        # Sleep until the start of the next minute
+        now = datetime.now()
+        sleep_time = 60 - now.second
+        await asyncio.sleep(sleep_time)
 
 @app.on_event("startup")
 async def on_startup():
@@ -330,6 +492,7 @@ async def on_startup():
     await backfill_dobs()
     await seed_batches()
     asyncio.create_task(check_pending_tasks_and_notify())
+    asyncio.create_task(check_completed_classes_and_notify())
 
 async def backfill_dobs():
     """Backfill DOB for seeded students that were created before the DOB field existed."""
