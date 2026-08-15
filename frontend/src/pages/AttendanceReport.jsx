@@ -72,12 +72,20 @@ export default function AttendanceReport() {
   }, [attendance]);
 
   const toggleAttendance = async (studentId, dateStr, currentStatus) => {
-    // Determine next status: empty -> present -> absent -> late -> present...
-    const nextStatus = !currentStatus ? "present" : currentStatus === "present" ? "absent" : currentStatus === "absent" ? "late" : "present";
+    // Determine next status: empty -> present -> absent -> late -> empty...
+    const nextStatus = !currentStatus ? "present" : currentStatus === "present" ? "absent" : currentStatus === "absent" ? "late" : null;
     
     // Optimistic UI update
     setAttendance((prev) => {
       const existingIdx = prev.findIndex(a => a.student_id === studentId && a.date === dateStr);
+      if (nextStatus === null) {
+        if (existingIdx >= 0) {
+          const nextAtt = [...prev];
+          nextAtt.splice(existingIdx, 1);
+          return nextAtt;
+        }
+        return prev;
+      }
       if (existingIdx >= 0) {
         const nextAtt = [...prev];
         nextAtt[existingIdx] = { ...nextAtt[existingIdx], status: nextStatus };
@@ -88,7 +96,11 @@ export default function AttendanceReport() {
     });
 
     try {
-      await api.post("/attendance", { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" });
+      if (nextStatus === null) {
+        await api.delete(`/attendance?student_id=${studentId}&date=${dateStr}`);
+      } else {
+        await api.post("/attendance", { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" });
+      }
     } catch (e) {
       toast.error(formatApiError(e));
       // Revert on error

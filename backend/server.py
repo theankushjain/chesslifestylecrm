@@ -858,6 +858,13 @@ async def mark_attendance(body: AttendanceIn, user: dict = Depends(require_roles
         await db.attendance.insert_one(doc)
     return clean(doc)
 
+@api.delete("/attendance")
+async def delete_attendance(student_id: str, date: str, user: dict = Depends(require_roles("admin", "staff"))):
+    result = await db.attendance.delete_one({"student_id": student_id, "date": date})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Not found")
+    return {"ok": True}
+
 
 @api.get("/payments")
 async def list_payments(student_id: Optional[str] = None, user: dict = Depends(get_current_user)):
