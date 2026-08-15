@@ -71,6 +71,31 @@ export default function AttendanceReport() {
     return map;
   }, [attendance]);
 
+  const toggleAttendance = async (studentId, dateStr, currentStatus) => {
+    // Determine next status: empty -> present -> absent -> late -> present...
+    const nextStatus = !currentStatus ? "present" : currentStatus === "present" ? "absent" : currentStatus === "absent" ? "late" : "present";
+    
+    // Optimistic UI update
+    setAttendance((prev) => {
+      const existingIdx = prev.findIndex(a => a.student_id === studentId && a.date === dateStr);
+      if (existingIdx >= 0) {
+        const nextAtt = [...prev];
+        nextAtt[existingIdx] = { ...nextAtt[existingIdx], status: nextStatus };
+        return nextAtt;
+      } else {
+        return [...prev, { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" }];
+      }
+    });
+
+    try {
+      await api.post("/attendance", { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" });
+    } catch (e) {
+      toast.error(formatApiError(e));
+      // Revert on error
+      load(); 
+    }
+  };
+
   const handleExportPDF = () => {
     const head = ["Student Name", "Total Absents (A)", "Total Presents (P)"];
     
@@ -184,7 +209,12 @@ export default function AttendanceReport() {
                       const color = STATUS_ICONS[status]?.color;
 
                       return (
-                        <td key={day} className="px-2 py-2 text-center border-r border-border/60 last:border-r-0">
+                        <td 
+                          key={day} 
+                          className="px-2 py-2 text-center border-r border-border/60 last:border-r-0 cursor-pointer hover:bg-secondary/60 transition-colors"
+                          onClick={() => toggleAttendance(s.id, dateStr, status)}
+                          title="Click to toggle attendance"
+                        >
                           {Icon ? (
                             <Icon className={`w-3.5 h-3.5 mx-auto ${color}`} title={`${status} on ${dateStr}`} />
                           ) : (
