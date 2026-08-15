@@ -42,6 +42,64 @@ export default function Dashboard() {
     }
   };
 
+  const migrateAdvikProgress = async () => {
+    try {
+      const { data: students } = await api.get("/students");
+      const advik = students.find(s => s.name.toLowerCase().includes("advik"));
+      if (!advik) {
+        alert("Advik not found");
+        return;
+      }
+      const { data: progress } = await api.get(`/students/${advik.id}/progress`);
+      let outcomes = [...progress.outcomes];
+      
+      let startIndex = outcomes.findIndex(o => o.text.includes('Mate-in-Two: Apply the CCT framework'));
+      if (startIndex === -1) {
+        for (let i = outcomes.length - 1; i >= 0; i--) {
+          if (outcomes[i].module && outcomes[i].module.includes("Module 9")) {
+            startIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (startIndex === -1) {
+        alert("Module 9 not found in progress");
+        return;
+      }
+      
+      const targetDates = [];
+      let current = new Date(2026, 7, 15); // Aug 15 2026
+      const stop = new Date(2026, 3, 4); // Apr 4 2026
+
+      for (let i = 0; i <= startIndex; i++) {
+        targetDates.push(new Date(current));
+        if (current > stop) {
+          current.setDate(current.getDate() - 1);
+          while (current.getDay() !== 0 && current.getDay() !== 6) {
+            current.setDate(current.getDate() - 1);
+          }
+        }
+      }
+      
+      for (let i = startIndex, j = 0; i >= 0; i--, j++) {
+        const d = targetDates[j];
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        
+        outcomes[i].completed = true;
+        outcomes[i].completed_date = `${y}-${m}-${day}`;
+      }
+      
+      await api.put(`/students/${advik.id}/progress`, { outcomes });
+      alert("Advik's progress updated successfully! Please verify it.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to migrate: " + e.message);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -77,6 +135,10 @@ export default function Dashboard() {
             {notifState === 'denied' && <><BellOff className="w-4 h-4" /> Notifications Blocked</>}
           </Button>
         )}
+        
+        <Button variant="default" onClick={migrateAdvikProgress} className="rounded-none">
+          Migrate Advik Progress
+        </Button>
       </div>
 
       {/* Today's Classes */}
