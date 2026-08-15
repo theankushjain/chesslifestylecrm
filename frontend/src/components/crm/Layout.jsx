@@ -7,7 +7,7 @@ import NotificationBell from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin"] },
-  { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin"] },
+  { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin", "staff"] },
   { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
   { to: "/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance", roles: ["admin", "staff"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin"] },

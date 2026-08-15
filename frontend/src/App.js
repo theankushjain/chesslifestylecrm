@@ -47,7 +47,7 @@ function App() {
             <Route path="/p/progress/:id" element={<ProgressReportView />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
-              <Route path="students" element={<Protected roles={["admin"]}><Students /></Protected>} />
+              <Route path="students" element={<Protected roles={["admin", "staff"]}><Students /></Protected>} />
               <Route path="students/:id" element={<Protected><StudentDetail /></Protected>} />
               <Route path="leads" element={<Protected roles={["admin"]}><Leads /></Protected>} />
               <Route path="leads/:id" element={<Protected roles={["admin"]}><LeadDetail /></Protected>} />

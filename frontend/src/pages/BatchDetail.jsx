@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -278,7 +278,7 @@ export default function BatchDetail() {
           {studentsInBatch.map((s) => (
             <div key={s.id} className="flex items-center justify-between p-2 border border-border/60">
               <div>
-                <div className="text-sm font-medium">{s.name}</div>
+                <Link to={`/students/${s.id}`} className="text-sm font-medium hover:underline">{s.name}</Link>
                 <div className="text-xs text-muted-foreground">{s.level}</div>
               </div>
               <button onClick={() => removeStudent(s.id)} data-testid={`remove-student-${s.id}`}
