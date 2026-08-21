@@ -102,6 +102,12 @@ export default function PrintBlankForm() {
                 <div className="border-b-2 border-dotted border-black pb-1 relative">
                   <div className="text-[11px] uppercase tracking-widest text-black font-bold mb-6">Secondary Phone Number</div>
                 </div>
+                <div className="border-b-2 border-dotted border-black pb-1 relative">
+                  <div className="text-[11px] uppercase tracking-widest text-black font-bold mb-6">Father's Occupation</div>
+                </div>
+                <div className="border-b-2 border-dotted border-black pb-1 relative">
+                  <div className="text-[11px] uppercase tracking-widest text-black font-bold mb-6">Mother's Occupation</div>
+                </div>
                 <div className="col-span-2 border-b-2 border-dotted border-black pb-1 relative">
                   <div className="text-[11px] uppercase tracking-widest text-black font-bold mb-6">Email Address</div>
                 </div>
@@ -136,6 +142,8 @@ export default function PrintBlankForm() {
               <p className="font-bold tracking-widest uppercase mb-1">thechesslifestyle.com</p>
               <p className="text-[10px] text-neutral-500">
                 This document is strictly for internal academy use. All student data is handled securely and privately.
+                <br />
+                Knowing parents' occupations helps us tailor our communication, organize better schedules, and explore mutually beneficial professional networking opportunities within our academy community.
               </p>
             </div>
           </div>
