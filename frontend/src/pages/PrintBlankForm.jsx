@@ -45,7 +45,7 @@ export default function PrintBlankForm() {
 
         {/* Top edge gradient/checkerboard */}
         {!isColorMode && (
-          <div className="absolute top-0 left-0 right-0 h-2 opacity-20" style={{ backgroundImage: \`repeating-linear-gradient(90deg, black 0, black 20px, transparent 20px, transparent 40px)\` }} />
+          <div className="absolute top-0 left-0 right-0 h-2 opacity-20" style={{ backgroundImage: `repeating-linear-gradient(90deg, black 0, black 20px, transparent 20px, transparent 40px)` }} />
         )}
         {isColorMode && (
           <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#D4AF37] z-20" />
