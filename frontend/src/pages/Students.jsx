@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download } from "lucide-react";
+import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -49,6 +49,9 @@ export default function Students() {
               <Download className="w-4 h-4 mr-1.5" /> Export
             </Button>
           )}
+          <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-none h-10" title="Download blank registration form PDF">
+            <Printer className="w-4 h-4 mr-1.5" /> Blank Form
+          </Button>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="add-student-btn" className="rounded-none h-10">

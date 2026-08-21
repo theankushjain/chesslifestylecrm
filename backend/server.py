@@ -129,6 +129,11 @@ class StudentIn(BaseModel):
     status: str = "active"
     dob: Optional[str] = None  # YYYY-MM-DD
     tags: list[str] = []
+    grade: str = ""
+    school: str = ""
+    father_occupation: str = ""
+    mother_occupation: str = ""
+    hobby: str = ""
 
 class AccountCreate(BaseModel):
     email: str
@@ -146,6 +151,21 @@ class StudentUpdate(BaseModel):
     status: Optional[str] = None
     dob: Optional[str] = None
     tags: Optional[list[str]] = None
+    grade: Optional[str] = None
+    school: Optional[str] = None
+    father_occupation: Optional[str] = None
+    mother_occupation: Optional[str] = None
+    hobby: Optional[str] = None
+
+class StudentFormUpdate(BaseModel):
+    name: Optional[str] = None
+    dob: Optional[str] = None
+    phone: Optional[str] = None
+    grade: Optional[str] = None
+    school: Optional[str] = None
+    father_occupation: Optional[str] = None
+    mother_occupation: Optional[str] = None
+    hobby: Optional[str] = None
 
 class LeadIn(BaseModel):
     name: str
@@ -813,6 +833,36 @@ async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(req
 @api.delete("/students/{sid}")
 async def delete_student(sid: str, user: dict = Depends(require_roles("admin"))):
     await db.students.delete_one({"_id": sid})
+    return {"ok": True}
+
+
+@api.get("/public/students/{sid}/form")
+async def get_public_student_form(sid: str):
+    doc = await db.students.find_one({"_id": sid})
+    if not doc:
+        raise HTTPException(404, "Student not found")
+    return {
+        "id": sid,
+        "name": doc.get("name"),
+        "dob": doc.get("dob"),
+        "phone": doc.get("phone"),
+        "grade": doc.get("grade"),
+        "school": doc.get("school"),
+        "father_occupation": doc.get("father_occupation"),
+        "mother_occupation": doc.get("mother_occupation"),
+        "hobby": doc.get("hobby")
+    }
+
+@api.patch("/public/students/{sid}/form")
+async def update_public_student_form(sid: str, body: StudentFormUpdate):
+    doc = await db.students.find_one({"_id": sid})
+    if not doc:
+        raise HTTPException(404, "Student not found")
+    
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        await db.students.update_one({"_id": sid}, {"$set": updates})
+    
     return {"ok": True}
 
 

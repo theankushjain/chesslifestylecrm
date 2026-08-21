@@ -20,6 +20,8 @@ import Tasks from "@/pages/Tasks";
 import Profile from "@/pages/Profile";
 import AttendanceReport from "@/pages/AttendanceReport";
 import ProgressReportView from "@/pages/ProgressReportView";
+import StudentForm from "@/pages/StudentForm";
+import PrintBlankForm from "@/pages/PrintBlankForm";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -45,6 +47,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/p/progress/:id" element={<ProgressReportView />} />
+            <Route path="/student-form/:id" element={<StudentForm />} />
+            <Route path="/print-blank-form" element={<PrintBlankForm />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
               <Route path="students" element={<Protected roles={["admin", "staff"]}><Students /></Protected>} />

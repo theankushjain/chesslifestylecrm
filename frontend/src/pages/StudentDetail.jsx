@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake } from "lucide-react";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -150,7 +150,14 @@ export default function StudentDetail() {
               </button>
             )}
             {canEdit && (
-               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-wrap justify-end">
+              <Button variant="outline" onClick={() => {
+                const url = `${window.location.origin}/student-form/${id}`;
+                navigator.clipboard.writeText(url);
+                toast.success("Form link copied!");
+              }} className="rounded-none w-full sm:flex-1 md:flex-none">
+                <Copy className="w-4 h-4 mr-2" /> Copy Form Link
+              </Button>
               <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">Create Account</Button>
               <Button onClick={() => setEditOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">
                 <Pencil className="w-4 h-4 mr-2" /> Edit
