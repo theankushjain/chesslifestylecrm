@@ -29,7 +29,7 @@ export default function Classes() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="label-over">Timetable</div>
           <h1 className="text-4xl font-serif">Classes</h1>

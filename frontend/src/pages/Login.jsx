@@ -40,7 +40,7 @@ export default function Login() {
         <img src={AUTH_IMG} alt="Chess pieces" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/55" />
         <div className="relative z-10 h-full flex flex-col justify-between p-10 text-white">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Crown className="w-5 h-5 text-brand" />
             <span className="label-over text-white/80">The Chess Lifestyle</span>
           </div>

@@ -99,12 +99,12 @@ export default function Payments() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="label-over">Ledger</div>
           <h1 className="text-4xl font-serif">Fees</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {user?.role === "admin" && (
             <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
               <FileText className="w-4 h-4 mr-1.5" /> PDF

@@ -43,7 +43,7 @@ export default function Chatbot() {
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] md:h-screen">
       <div className="p-4 md:p-8 border-b border-border/60 bg-white">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Sparkles className="w-4 h-4 text-brand" />
           <div className="label-over">AI Assistant</div>
         </div>

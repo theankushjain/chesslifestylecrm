@@ -121,7 +121,7 @@ export default function LearningProgressTab({ student }) {
           <h2 className="text-xl font-serif">Learning Outcomes Checklist</h2>
           <p className="text-sm text-muted-foreground">Mark completed items. You can also add custom outcomes within any module.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => downloadProgressReport(student, outcomes)} className="rounded-xl">
             <Download className="w-4 h-4 mr-2" /> Download PDF
           </Button>
@@ -171,7 +171,7 @@ export default function LearningProgressTab({ student }) {
                                   )}
                                 </label>
                                 {outcome.completed && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-xs text-muted-foreground uppercase tracking-widest">Completed:</span>
                                     <Input 
                                       type="date" 

@@ -258,7 +258,7 @@ export default function StudentDetail() {
                     <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
                     <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {p.status !== "paid" ? (
                       <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
                     ) : (

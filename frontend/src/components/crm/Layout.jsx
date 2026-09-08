@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare, Menu, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ const NAV = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const items = NAV.filter((n) => n.roles.includes(user.role));
   
   const MAX_VISIBLE = 4;
@@ -34,7 +35,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans selection:bg-brand/20">
+    <div className="min-h-screen w-full overflow-x-hidden bg-background flex flex-col md:flex-row font-sans selection:bg-brand/20">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col bg-[#242B38] text-white shadow-xl z-20">
         <div className="p-6 border-b border-white/10">
@@ -143,24 +144,25 @@ export default function Layout() {
                   <h2 className="font-serif font-bold text-xl">More Menu</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 grid gap-2 bg-neutral-50/50">
-                  {hiddenItems.map((n) => (
-                    <SheetTrigger key={n.to} asChild>
-                      <NavLink
-                        to={n.to}
-                        end={n.to === "/"}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${
+                  {hiddenItems.map((n) => {
+                    const isActive = location.pathname === n.to || (n.to !== "/" && location.pathname.startsWith(n.to));
+                    return (
+                      <SheetTrigger key={n.to} asChild>
+                        <NavLink
+                          to={n.to}
+                          end={n.to === "/"}
+                          className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${
                             isActive 
                               ? "bg-[#F58B10] text-white shadow-md shadow-[#F58B10]/20" 
                               : "hover:bg-white border border-transparent hover:border-border/60 hover:shadow-sm bg-white text-foreground"
-                          }`
-                        }
-                      >
-                        <n.icon className="w-5 h-5" />
-                        <span>{n.label}</span>
-                      </NavLink>
-                    </SheetTrigger>
-                  ))}
+                          }`}
+                        >
+                          <n.icon className="w-5 h-5" />
+                          <span>{n.label}</span>
+                        </NavLink>
+                      </SheetTrigger>
+                    );
+                  })}
                 </div>
               </SheetContent>
             </Sheet>

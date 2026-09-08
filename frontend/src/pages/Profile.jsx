@@ -59,7 +59,7 @@ export default function Profile() {
 
       <Card className="rounded-xl border-border/60">
         <CardHeader className="bg-secondary/30 border-b border-border/60">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex flex-wrap items-center gap-2">
             <User className="w-5 h-5 text-primary" /> Profile Details
           </CardTitle>
           <CardDescription>Update your personal information.</CardDescription>

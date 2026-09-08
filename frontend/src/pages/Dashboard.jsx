@@ -141,7 +141,7 @@ export default function Dashboard() {
                   className={`flex items-start gap-3 p-4 bg-white border border-border/40 shadow-sm rounded-xl border-l-4 ${sev.color} hover:bg-secondary/40 transition-colors`}>
                   <Icon className={`w-4 h-4 mt-0.5 ${sev.tint}`} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-[10px] uppercase tracking-widest font-medium ${sev.tint}`}>{sev.label}</span>
                     </div>
                     <div className="font-medium text-sm mt-0.5">{a.title}</div>

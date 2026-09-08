@@ -178,7 +178,7 @@ export default function ProgressReportView() {
                       value={level}
                       className="rounded-xl py-3 px-6 flex-shrink-0 transition-all data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md font-semibold text-slate-600 hover:bg-slate-100"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {isFullyCompleted && <Star className="w-4 h-4 text-orange-400 fill-orange-400" />}
                         {level}
                       </div>
