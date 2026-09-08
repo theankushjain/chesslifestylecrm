@@ -56,7 +56,7 @@ export default function Chatbot() {
             <div className={`max-w-[85%] px-4 py-3 text-sm whitespace-pre-wrap ${
               m.role === "user"
                 ? "bg-primary text-primary-foreground"
-                : "bg-white border border-border/60"
+                : "bg-white border border-border/40 shadow-sm rounded-xl"
             }`}>
               {m.content}
             </div>
@@ -64,7 +64,7 @@ export default function Chatbot() {
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="bg-white border border-border/60 px-4 py-3 text-sm text-muted-foreground animate-pulse">
+            <div className="bg-white border border-border/40 shadow-sm rounded-xl px-4 py-3 text-sm text-muted-foreground animate-pulse">
               Thinking...
             </div>
           </div>
@@ -76,7 +76,7 @@ export default function Chatbot() {
             <div className="grid gap-2">
               {SUGGESTIONS.map((s, i) => (
                 <button key={i} onClick={() => send(s)} data-testid={`suggestion-${i}`}
-                  className="text-left text-sm p-3 bg-white border border-border/60 hover:bg-secondary transition-colors">
+                  className="text-left text-sm p-3 bg-white border border-border/40 shadow-sm rounded-xl hover:bg-secondary transition-colors">
                   {s}
                 </button>
               ))}
@@ -89,8 +89,8 @@ export default function Chatbot() {
         <form onSubmit={(e) => { e.preventDefault(); send(); }} className="max-w-3xl mx-auto flex gap-2">
           <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question..."
             data-testid="chat-input" disabled={sending}
-            className="rounded-none" />
-          <Button type="submit" disabled={sending || !input.trim()} data-testid="chat-send" className="rounded-none">
+            className="rounded-xl" />
+          <Button type="submit" disabled={sending || !input.trim()} data-testid="chat-send" className="rounded-xl">
             <Send className="w-4 h-4" />
           </Button>
         </form>

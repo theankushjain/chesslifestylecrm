@@ -122,7 +122,7 @@ export default function StudentForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white border border-border/60 shadow-xl shadow-black/[0.02] p-6 md:p-10 space-y-8 animate-in fade-in duration-500 relative overflow-hidden">
+        <form onSubmit={handleSubmit} className="bg-white border border-border/40 shadow-sm rounded-xl shadow-xl shadow-black/[0.02] p-6 md:p-10 space-y-8 animate-in fade-in duration-500 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand/40 via-brand to-brand/40" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

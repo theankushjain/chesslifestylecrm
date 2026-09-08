@@ -158,18 +158,18 @@ export default function AttendanceReport() {
         
         <div className="flex items-center gap-4">
           {user?.role === "admin" && (
-            <Button variant="outline" onClick={handleExportPDF} className="rounded-none h-10">
+            <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
               <FileText className="w-4 h-4 mr-1.5" /> PDF
             </Button>
           )}
-          <div className="flex items-center gap-4 bg-white border border-border/60 p-1">
-          <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-none">
+          <div className="flex items-center gap-4 bg-white border border-border/40 shadow-sm rounded-xl p-1">
+          <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-xl">
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <div className="font-medium text-sm w-32 text-center uppercase tracking-widest">
             {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
           </div>
-          <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-none">
+          <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-xl">
             <ChevronRight className="w-4 h-4" />
           </Button>
           </div>
@@ -179,7 +179,7 @@ export default function AttendanceReport() {
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading...</div>
       ) : (
-        <div className="bg-white border border-border/60 overflow-x-auto">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-secondary/50 border-b border-border/60">
               <tr>

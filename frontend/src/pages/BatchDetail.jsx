@@ -138,7 +138,7 @@ export default function BatchDetail() {
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </button>
 
-      <div className="bg-white border border-border/60 p-6 mb-6">
+      <div className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
             <div className="label-over">{batch.level} · Batch</div>
@@ -148,13 +148,13 @@ export default function BatchDetail() {
           <div className="flex flex-col gap-2">
             {(user.role === "admin" || user.role === "staff") && (
               <button onClick={() => setEditOpen(true)} data-testid="batch-edit-btn"
-                className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
+                className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-secondary" title="Edit">
                 <Pencil className="w-4 h-4" />
               </button>
             )}
             {canDelete && (
               <button onClick={() => setDeleteOpen(true)} data-testid="batch-delete-btn"
-                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-destructive hover:text-destructive-foreground" title="Delete">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -163,20 +163,20 @@ export default function BatchDetail() {
       </div>
 
       {/* Take attendance */}
-      <section className="bg-white border border-border/60 p-6 mb-6">
+      <section className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
             <div className="label-over">Take attendance</div>
             <div className="text-xs text-muted-foreground mt-1">Everyone is present by default. Tap a student to mark absent or late.</div>
           </div>
           <Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)}
-            data-testid="attendance-date" className="rounded-none w-auto" />
+            data-testid="attendance-date" className="rounded-xl w-auto" />
         </div>
 
         <div>
           <Label className="text-xs uppercase tracking-widest">Topic (optional)</Label>
           <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Rook Endgames"
-            data-testid="attendance-topic" className="rounded-none mb-3" />
+            data-testid="attendance-topic" className="rounded-xl mb-3" />
         </div>
 
         {studentsInBatch.length === 0 ? (
@@ -192,11 +192,11 @@ export default function BatchDetail() {
                 <span className="text-success font-medium">{studentsInBatch.filter((s) => (attendanceState[s.id] || 'present') === 'present').length} present</span>
               </div>
               <button onClick={markAllPresent} data-testid="mark-all-present"
-                className="text-[10px] uppercase tracking-widest border border-border/60 px-2 py-1 hover:bg-secondary">
+                className="text-[10px] uppercase tracking-widest border border-border/40 shadow-sm rounded-xl px-2 py-1 hover:bg-secondary">
                 Reset all present
               </button>
             </div>
-            <div className="divide-y divide-border/60 border border-border/60">
+            <div className="divide-y divide-border/60 border border-border/40 shadow-sm rounded-xl">
               {studentsInBatch.map((s) => {
                 const status = attendanceState[s.id] || 'present';
                 const config = {
@@ -223,7 +223,7 @@ export default function BatchDetail() {
               })}
             </div>
             <Button onClick={saveAttendance} disabled={savingAttendance} data-testid="save-attendance"
-              className="w-full mt-4 rounded-none h-11">
+              className="w-full mt-4 rounded-xl h-11">
               <Save className="w-4 h-4 mr-1.5" />
               {savingAttendance ? "Saving..." : `Save attendance for ${attendanceDate}`}
             </Button>
@@ -232,30 +232,30 @@ export default function BatchDetail() {
       </section>
 
       {/* Schedule */}
-      <section className="bg-white border border-border/60 p-6 mb-6">
+      <section className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="label-over">Weekly schedule</div>
             <div className="text-xs text-muted-foreground mt-1">When this batch meets each week.</div>
           </div>
-          <Button size="sm" variant="outline" onClick={addSlot} data-testid="add-slot-btn" className="rounded-none">
+          <Button size="sm" variant="outline" onClick={addSlot} data-testid="add-slot-btn" className="rounded-xl">
             <Plus className="w-3.5 h-3.5 mr-1" /> Slot
           </Button>
         </div>
         <div className="space-y-2">
           {(Array.isArray(batch.schedule) ? batch.schedule : []).map((slot, i) => (
-            <div key={i} className="flex items-center gap-2 border border-border/60 p-2">
+            <div key={i} className="flex items-center gap-2 border border-border/40 shadow-sm rounded-xl p-2">
               <Select value={slot.day} onValueChange={(v) => updateSlot(i, { day: v })}>
-                <SelectTrigger className="rounded-none w-28" data-testid={`slot-day-${i}`}><SelectValue /></SelectTrigger>
+                <SelectTrigger className="rounded-xl w-28" data-testid={`slot-day-${i}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DAYS.map((d) => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input type="time" value={slot.time} onChange={(e) => updateSlot(i, { time: e.target.value })}
-                data-testid={`slot-time-${i}`} className="rounded-none w-32" />
+                data-testid={`slot-time-${i}`} className="rounded-xl w-32" />
               <Input type="number" min="15" step="15" value={slot.duration_min}
                 onChange={(e) => updateSlot(i, { duration_min: Number(e.target.value) })}
-                data-testid={`slot-duration-${i}`} className="rounded-none w-20" />
+                data-testid={`slot-duration-${i}`} className="rounded-xl w-20" />
               <span className="text-xs text-muted-foreground">min</span>
               <button onClick={() => removeSlot(i)} data-testid={`slot-remove-${i}`}
                 className="ml-auto p-1.5 hover:bg-destructive/10 text-destructive">
@@ -272,11 +272,11 @@ export default function BatchDetail() {
       </section>
 
       {/* Students in batch */}
-      <section className="bg-white border border-border/60 p-6">
+      <section className="bg-white border border-border/40 shadow-sm rounded-xl p-6">
         <div className="label-over mb-3">Students in this batch ({studentsInBatch.length})</div>
         <div className="space-y-1 mb-4">
           {studentsInBatch.map((s) => (
-            <div key={s.id} className="flex items-center justify-between p-2 border border-border/60">
+            <div key={s.id} className="flex items-center justify-between p-2 border border-border/40 shadow-sm rounded-xl">
               <div>
                 <Link to={`/students/${s.id}`} className="text-sm font-medium hover:underline">{s.name}</Link>
                 <div className="text-xs text-muted-foreground">{s.level}</div>
@@ -295,7 +295,7 @@ export default function BatchDetail() {
           <div>
             <div className="label-over mb-2">Add student</div>
             <Select value="" onValueChange={addStudent}>
-              <SelectTrigger data-testid="add-student-to-batch" className="rounded-none">
+              <SelectTrigger data-testid="add-student-to-batch" className="rounded-xl">
                 <SelectValue placeholder="Choose a student to add..." />
               </SelectTrigger>
               <SelectContent>
@@ -314,7 +314,7 @@ export default function BatchDetail() {
       </Dialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="rounded-none">
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-serif text-2xl">Delete this batch?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -322,9 +322,9 @@ export default function BatchDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-none">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} data-testid="batch-delete-confirm"
-              className="rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -347,18 +347,18 @@ function BatchEditDialog({ batch, onSaved }) {
     finally { setSaving(false); }
   };
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader><DialogTitle className="font-serif text-2xl">Edit batch</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Batch name</Label>
-          <Input data-testid="batch-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+          <Input data-testid="batch-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Level</Label>
             <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Beginner", "Intermediate", "Advanced"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
               </SelectContent>
@@ -366,16 +366,16 @@ function BatchEditDialog({ batch, onSaved }) {
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Coach</Label>
-            <Input value={form.coach} onChange={(e) => setForm({ ...form, coach: e.target.value })} className="rounded-none" />
+            <Input value={form.coach} onChange={(e) => setForm({ ...form, coach: e.target.value })} className="rounded-xl" />
           </div>
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={2} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={2} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="batch-edit-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="batch-edit-save" className="rounded-xl">
           {saving ? "Saving..." : "Save changes"}
         </Button>
       </DialogFooter>

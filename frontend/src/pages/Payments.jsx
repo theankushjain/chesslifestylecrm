@@ -106,17 +106,17 @@ export default function Payments() {
         </div>
         <div className="flex items-center gap-2">
           {user?.role === "admin" && (
-            <Button variant="outline" onClick={handleExportPDF} className="rounded-none h-10">
+            <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
               <FileText className="w-4 h-4 mr-1.5" /> PDF
             </Button>
           )}
-          <Button onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-none h-10">
+          <Button onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-xl h-10">
             <Wand2 className="w-4 h-4 mr-1.5" /> {generating ? "Generating..." : "Generate Month Fees"}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-px bg-border/60 border border-border/60 mb-6">
+      <div className="grid grid-cols-2 gap-px bg-border/60 border border-border/40 shadow-sm rounded-xl mb-6">
         <div className="bg-white p-4 md:p-6" data-testid="totals-paid">
           <div className="label-over text-[9px]">Collected this month</div>
           <div className="text-2xl md:text-3xl font-serif mt-2 flex items-center">
@@ -143,7 +143,7 @@ export default function Payments() {
       </div>
 
       {loading ? <div className="text-sm text-muted-foreground">Loading...</div> : (
-        <div className="bg-white border border-border/60 divide-y divide-border/60" data-testid="payments-list">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60" data-testid="payments-list">
           {filtered.map((p) => {
             const s = students[p.student_id];
             return (
@@ -163,13 +163,13 @@ export default function Payments() {
                     <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${
                       p.status === "overdue" ? "bg-destructive text-destructive-foreground" : "bg-warning text-white"
                     }`}>{p.status}</span>
-                    <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`pay-${p.id}`} className="rounded-none">
+                    <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`pay-${p.id}`} className="rounded-xl">
                       Mark paid
                     </Button>
                     {(s?.parent_phone || s?.phone) && (
                       <button
                         onClick={() => openWhatsapp(s.parent_phone || s.phone, studentReminderMessage(s, p))}
-                        className="p-2 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10"
+                        className="p-2 border border-border/40 shadow-sm rounded-xl text-[#25D366] hover:bg-[#25D366]/10"
                         title="Send WhatsApp Reminder">
                         <WhatsappIcon className="w-4 h-4" />
                       </button>

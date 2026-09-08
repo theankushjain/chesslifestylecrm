@@ -45,16 +45,35 @@ export default function Students() {
         </div>
         <div className="flex items-center gap-2">
           {user?.role === "admin" && (
-            <Button variant="outline" onClick={() => exportToCSV(students, "students_report.csv")} className="rounded-none h-10">
+            <Button variant="outline" onClick={() => {
+              const exportData = students.map(s => ({
+                Name: s.name,
+                Phone: s.phone || "",
+                "Parent Name": s.parent_name || "",
+                "Parent Phone": s.parent_phone || "",
+                "Father's Profession": s.father_occupation || "",
+                "Mother's Profession": s.mother_occupation || "",
+                Level: s.level || "",
+                "Monthly Fee": s.monthly_fee || 0,
+                Status: s.status || "",
+                DOB: s.dob || "",
+                Grade: s.grade || "",
+                School: s.school || "",
+                Hobby: s.hobby || "",
+                Notes: s.notes || "",
+                Tags: Array.isArray(s.tags) ? s.tags.join(", ") : ""
+              }));
+              exportToCSV(exportData, "students_report.csv");
+            }} className="rounded-xl h-10">
               <Download className="w-4 h-4 mr-1.5" /> Export
             </Button>
           )}
-          <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-none h-10" title="Download blank registration form PDF">
+          <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-xl h-10" title="Download blank registration form PDF">
             <Printer className="w-4 h-4 mr-1.5" /> Blank Form
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="add-student-btn" className="rounded-none h-10">
+            <Button data-testid="add-student-btn" className="rounded-xl h-10">
               <Plus className="w-4 h-4 mr-1.5" /> Add
             </Button>
           </DialogTrigger>
@@ -67,13 +86,13 @@ export default function Students() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input placeholder="Search by name, phone or parent..." data-testid="student-search"
           value={query} onChange={(e) => setQuery(e.target.value)}
-          className="pl-10 rounded-none bg-white" />
+          className="pl-10 rounded-xl bg-white" />
       </div>
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading...</div>
       ) : (
-        <div className="bg-white border border-border/60 divide-y divide-border/60" data-testid="students-list">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60" data-testid="students-list">
           {filtered.map((s) => (
             <div key={s.id} className="flex items-center justify-between hover:bg-secondary/50 transition-colors">
               <Link to={`/students/${s.id}`} data-testid={`student-row-${s.id}`}
@@ -163,24 +182,24 @@ function StudentDialog({ onSaved, student }) {
   };
 
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">{student ? "Edit student" : "New student"}</DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Name</Label>
-          <Input data-testid="student-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+          <Input data-testid="student-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Phone</Label>
-            <Input data-testid="student-form-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+            <Input data-testid="student-form-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Level</Label>
             <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
-              <SelectTrigger data-testid="student-form-level" className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger data-testid="student-form-level" className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>{LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -188,32 +207,32 @@ function StudentDialog({ onSaved, student }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Parent name</Label>
-            <Input value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} className="rounded-none" />
+            <Input value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Parent phone</Label>
-            <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-none" />
+            <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-xl" />
           </div>
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
-          <Input type="number" data-testid="student-form-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-none" />
+          <Input type="number" data-testid="student-form-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
-          <Input type="date" data-testid="student-form-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
+          <Input type="date" data-testid="student-form-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
-          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-none" />
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={3} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="student-form-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="student-form-save" className="rounded-xl">
           {saving ? "Saving..." : "Save"}
         </Button>
       </DialogFooter>

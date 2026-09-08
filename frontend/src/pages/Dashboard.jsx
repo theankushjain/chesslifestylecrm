@@ -42,64 +42,6 @@ export default function Dashboard() {
     }
   };
 
-  const migrateAdvikProgress = async () => {
-    try {
-      const { data: students } = await api.get("/students");
-      const advik = students.find(s => s.name.toLowerCase().includes("advik"));
-      if (!advik) {
-        alert("Advik not found");
-        return;
-      }
-      const { data: progress } = await api.get(`/students/${advik.id}/progress`);
-      let outcomes = [...progress.outcomes];
-      
-      let startIndex = outcomes.findIndex(o => o.text.includes('Mate-in-Two: Apply the CCT framework'));
-      if (startIndex === -1) {
-        for (let i = outcomes.length - 1; i >= 0; i--) {
-          if (outcomes[i].module && outcomes[i].module.includes("Module 9")) {
-            startIndex = i;
-            break;
-          }
-        }
-      }
-      
-      if (startIndex === -1) {
-        alert("Module 9 not found in progress");
-        return;
-      }
-      
-      const targetDates = [];
-      let current = new Date(2026, 7, 15); // Aug 15 2026
-      const stop = new Date(2026, 3, 4); // Apr 4 2026
-
-      for (let i = 0; i <= startIndex; i++) {
-        targetDates.push(new Date(current));
-        if (current > stop) {
-          current.setDate(current.getDate() - 1);
-          while (current.getDay() !== 0 && current.getDay() !== 6) {
-            current.setDate(current.getDate() - 1);
-          }
-        }
-      }
-      
-      for (let i = startIndex, j = 0; i >= 0; i--, j++) {
-        const d = targetDates[j];
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        
-        outcomes[i].completed = true;
-        outcomes[i].completed_date = `${y}-${m}-${day}`;
-      }
-      
-      await api.put(`/students/${advik.id}/progress`, { outcomes });
-      alert("Advik's progress updated successfully! Please verify it.");
-    } catch (e) {
-      console.error(e);
-      alert("Failed to migrate: " + e.message);
-    }
-  };
-
   useEffect(() => {
     const load = async () => {
       try {
@@ -128,17 +70,13 @@ export default function Dashboard() {
             variant="outline" 
             onClick={handleNotificationClick}
             disabled={notifState === 'denied'}
-            className={`rounded-none flex items-center gap-2 ${notifState === 'granted' ? 'border-primary text-primary' : ''}`}
+            className={`rounded-xl flex items-center gap-2 ${notifState === 'granted' ? 'border-primary text-primary' : ''}`}
           >
             {notifState === 'granted' && <><BellRing className="w-4 h-4" /> Notifications Enabled</>}
             {notifState === 'default' && <><Bell className="w-4 h-4" /> Enable Notifications</>}
             {notifState === 'denied' && <><BellOff className="w-4 h-4" /> Notifications Blocked</>}
           </Button>
         )}
-        
-        <Button variant="default" onClick={migrateAdvikProgress} className="rounded-none">
-          Migrate Advik Progress
-        </Button>
       </div>
 
       {/* Today's Classes */}
@@ -150,14 +88,14 @@ export default function Dashboard() {
           </Link>
         </div>
         {todayClasses.length === 0 ? (
-          <div className="border border-border/60 p-4 text-sm text-muted-foreground bg-white">
+          <div className="border border-border/40 shadow-sm rounded-xl p-4 text-sm text-muted-foreground bg-white">
             No classes scheduled today. Enjoy the break.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {todayClasses.map((c) => (
               <Link key={c.id} to={`/classes/${c.id}`} data-testid={`today-class-${c.id}`}
-                className="flex items-center gap-3 p-4 bg-white border border-border/60 hover:border-primary transition-colors group">
+                className="flex items-center gap-3 p-4 bg-white border border-border/40 shadow-sm rounded-xl hover:border-primary transition-colors group">
                 <div className="w-12 h-12 bg-primary text-primary-foreground flex flex-col items-center justify-center shrink-0">
                   <div className="text-[9px] uppercase tracking-widest opacity-70 leading-none">Class</div>
                   <CalendarDays className="w-4 h-4 mt-0.5" />
@@ -187,7 +125,7 @@ export default function Dashboard() {
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading...</div>
         ) : alerts.length === 0 ? (
-          <div className="border border-border/60 p-6 text-sm text-muted-foreground bg-white">
+          <div className="border border-border/40 shadow-sm rounded-xl p-6 text-sm text-muted-foreground bg-white">
             All caught up. No alerts right now.
           </div>
         ) : (
@@ -200,7 +138,7 @@ export default function Dashboard() {
                           a.type === "birthday" ? `/students/${a.student_id}` : "/students";
               return (
                 <Link key={a.id + a.type} to={link} data-testid={`alert-${a.type}-${a.id}`}
-                  className={`flex items-start gap-3 p-4 bg-white border border-border/60 border-l-4 ${sev.color} hover:bg-secondary/40 transition-colors`}>
+                  className={`flex items-start gap-3 p-4 bg-white border border-border/40 shadow-sm rounded-xl border-l-4 ${sev.color} hover:bg-secondary/40 transition-colors`}>
                   <Icon className={`w-4 h-4 mt-0.5 ${sev.tint}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -220,7 +158,7 @@ export default function Dashboard() {
       {stats && (
         <section className="mb-8">
           <div className="label-over mb-3">Overview</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/60 border border-border/60">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/60 border border-border/40 shadow-sm rounded-xl">
             <StatCard icon={Users} label="Active students" value={stats.total_students} testid="stat-students" />
             <StatCard icon={Target} label="Total leads" value={stats.total_leads} sub={`${stats.hot_leads} hot`} testid="stat-leads" />
             <StatCard icon={IndianRupee} label="Month revenue" value={`₹${stats.month_revenue.toLocaleString('en-IN')}`} testid="stat-revenue" />
@@ -233,7 +171,7 @@ export default function Dashboard() {
       {stats && (
         <section>
           <div className="label-over mb-3">Lead pipeline</div>
-          <div className="bg-white border border-border/60 p-4 md:p-6">
+          <div className="bg-white border border-border/40 shadow-sm rounded-xl p-4 md:p-6">
             <div className="space-y-3">
               {Object.entries(stats.funnel).map(([stage, count]) => {
                 const total = Object.values(stats.funnel).reduce((s, v) => s + v, 0) || 1;

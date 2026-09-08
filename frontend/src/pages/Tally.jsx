@@ -159,7 +159,7 @@ export default function Tally() {
                   <CardTitle>Founder Investment Ledger</CardTitle>
                   <CardDescription className="mt-1">Track capital injected and pending repayments.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={handleAddInvestmentClick} className="shrink-0 rounded-none">
+                <Button size="sm" variant="outline" onClick={handleAddInvestmentClick} className="shrink-0 rounded-xl">
                   + Add Entry
                 </Button>
               </CardHeader>

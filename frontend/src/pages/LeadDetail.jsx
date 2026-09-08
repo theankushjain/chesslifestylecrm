@@ -74,7 +74,7 @@ export default function LeadDetail() {
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </button>
 
-      <div className="bg-white border border-border/60 p-6 mb-6">
+      <div className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mt-2">
@@ -95,7 +95,7 @@ export default function LeadDetail() {
           </div>
           <div className="flex flex-col gap-2">
             {lead.phone && (
-              <a href={`tel:${lead.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="lead-call-btn">
+              <a href={`tel:${lead.phone}`} className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-secondary" data-testid="lead-call-btn">
                 <Phone className="w-4 h-4" />
               </a>
             )}
@@ -107,17 +107,17 @@ export default function LeadDetail() {
                 }}
                 data-testid="lead-whatsapp-btn"
                 title="Send WhatsApp"
-                className="p-3 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10">
+                className="p-3 border border-border/40 shadow-sm rounded-xl text-[#25D366] hover:bg-[#25D366]/10">
                 <WhatsappIcon className="w-4 h-4" />
               </button>
             )}
             <button onClick={() => setEditOpen(true)} data-testid="lead-edit-btn"
-              className="p-3 border border-border/60 hover:bg-secondary" title="Edit">
+              className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-secondary" title="Edit">
               <Pencil className="w-4 h-4" />
             </button>
             {canDelete && (
               <button onClick={() => setDeleteOpen(true)} data-testid="lead-delete-btn"
-                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-destructive hover:text-destructive-foreground" title="Delete">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -143,14 +143,14 @@ export default function LeadDetail() {
       </div>
 
       {/* Log a call */}
-      <div className="bg-white border border-border/60 p-6 mb-6">
+      <div className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="label-over mb-3">Log call</div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs uppercase tracking-widest">Outcome</Label>
               <Select value={call.outcome} onValueChange={(v) => setCall({ ...call, outcome: v })}>
-                <SelectTrigger data-testid="call-outcome" className="rounded-none"><SelectValue /></SelectTrigger>
+                <SelectTrigger data-testid="call-outcome" className="rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {OUTCOMES.map((o) => <SelectItem key={o} value={o}>{o.replace("_", " ")}</SelectItem>)}
                 </SelectContent>
@@ -158,14 +158,14 @@ export default function LeadDetail() {
             </div>
             <div>
               <Label className="text-xs uppercase tracking-widest">Next follow-up</Label>
-              <Input type="date" data-testid="call-followup" value={call.next_follow_up} onChange={(e) => setCall({ ...call, next_follow_up: e.target.value })} className="rounded-none" />
+              <Input type="date" data-testid="call-followup" value={call.next_follow_up} onChange={(e) => setCall({ ...call, next_follow_up: e.target.value })} className="rounded-xl" />
             </div>
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Remarks</Label>
-            <Textarea data-testid="call-remarks" value={call.remarks} onChange={(e) => setCall({ ...call, remarks: e.target.value })} className="rounded-none" rows={3} placeholder="What did they say?" />
+            <Textarea data-testid="call-remarks" value={call.remarks} onChange={(e) => setCall({ ...call, remarks: e.target.value })} className="rounded-xl" rows={3} placeholder="What did they say?" />
           </div>
-          <Button onClick={logCall} disabled={posting} data-testid="log-call-btn" className="rounded-none w-full">
+          <Button onClick={logCall} disabled={posting} data-testid="log-call-btn" className="rounded-xl w-full">
             <PhoneCall className="w-4 h-4 mr-1.5" />
             {posting ? "Saving..." : "Log call"}
           </Button>
@@ -175,7 +175,7 @@ export default function LeadDetail() {
       {/* Call history */}
       <div>
         <div className="label-over mb-2">Call history ({lead.call_logs?.length || 0})</div>
-        <div className="bg-white border border-border/60 divide-y divide-border/60">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
           {(lead.call_logs || []).map((c) => (
             <div key={c.id} className="p-4">
               <div className="flex items-center justify-between">
@@ -197,7 +197,7 @@ export default function LeadDetail() {
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="rounded-none">
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-serif text-2xl">Delete this lead?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -205,9 +205,9 @@ export default function LeadDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-none" data-testid="lead-delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl" data-testid="lead-delete-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} data-testid="lead-delete-confirm"
-              className="rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -241,22 +241,22 @@ function LeadEditDialog({ lead, onSaved }) {
   };
 
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader><DialogTitle className="font-serif text-2xl">Edit lead</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Name</Label>
-          <Input data-testid="lead-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+          <Input data-testid="lead-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Phone</Label>
-            <Input data-testid="lead-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+            <Input data-testid="lead-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Source</Label>
             <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Website", "Instagram", "Referral", "Google Ads", "Walk-in", "Other"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
@@ -265,23 +265,23 @@ function LeadEditDialog({ lead, onSaved }) {
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Email</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-none" />
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Next follow-up</Label>
-          <Input type="date" data-testid="lead-edit-followup" value={form.next_follow_up || ""} onChange={(e) => setForm({ ...form, next_follow_up: e.target.value })} className="rounded-none" />
+          <Input type="date" data-testid="lead-edit-followup" value={form.next_follow_up || ""} onChange={(e) => setForm({ ...form, next_follow_up: e.target.value })} className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
-          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-none" />
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={3} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="lead-edit-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="lead-edit-save" className="rounded-xl">
           {saving ? "Saving..." : "Save changes"}
         </Button>
       </DialogFooter>

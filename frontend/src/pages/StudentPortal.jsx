@@ -34,13 +34,13 @@ export default function StudentPortal() {
         <h1 className="text-4xl font-serif">Hi, {user.name.split(" ")[0]}</h1>
       </div>
 
-      <div className="bg-white border border-border/60 p-6 mb-6">
+      <div className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="label-over mb-2">You</div>
         <div className="text-2xl font-serif">{student.name}</div>
         <div className="text-sm text-muted-foreground mt-1">{student.level} · ₹{student.monthly_fee}/month</div>
       </div>
 
-      <div className="grid grid-cols-3 gap-px bg-border/60 border border-border/60 mb-6">
+      <div className="grid grid-cols-3 gap-px bg-border/60 border border-border/40 shadow-sm rounded-xl mb-6">
         <div className="bg-white p-4">
           <div className="label-over text-[9px]">Attendance</div>
           <div className="text-2xl font-serif mt-1">{rate}%</div>
@@ -57,7 +57,7 @@ export default function StudentPortal() {
 
       <div className="mb-6">
         <div className="label-over mb-2">Fees</div>
-        <div className="bg-white border border-border/60 divide-y divide-border/60">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
           {payments.map((p) => (
             <div key={p.id} className="flex items-center justify-between p-4">
               <div>
@@ -75,7 +75,7 @@ export default function StudentPortal() {
 
       <div>
         <div className="label-over mb-2">Recent classes</div>
-        <div className="bg-white border border-border/60 divide-y divide-border/60">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
           {attendance.slice(0, 10).map((a) => {
             const Icon = a.status === "present" ? CheckCircle2 : a.status === "absent" ? XCircle : Clock;
             const color = a.status === "present" ? "text-success" : a.status === "absent" ? "text-destructive" : "text-warning";

@@ -91,20 +91,20 @@ export default function Leads() {
         <div className="flex items-center gap-2">
           {user?.role === "admin" && (
             <>
-              <Button variant="outline" onClick={() => exportToCSV(leads, "leads_report.csv")} className="rounded-none h-10">
+              <Button variant="outline" onClick={() => exportToCSV(leads, "leads_report.csv")} className="rounded-xl h-10">
                 <Download className="w-4 h-4 mr-1.5" /> Export
               </Button>
-              <Button variant="outline" onClick={handleExportPDF} className="rounded-none h-10">
+              <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
                 <FileText className="w-4 h-4 mr-1.5" /> PDF
               </Button>
             </>
           )}
-          <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-none h-10" title="Download blank registration form PDF">
+          <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-xl h-10" title="Download blank registration form PDF">
             <Printer className="w-4 h-4 mr-1.5" /> Blank Form
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="add-lead-btn" className="rounded-none h-10">
+            <Button data-testid="add-lead-btn" className="rounded-xl h-10">
               <Plus className="w-4 h-4 mr-1.5" /> Add
             </Button>
           </DialogTrigger>
@@ -128,7 +128,7 @@ export default function Leads() {
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading...</div>
       ) : (
-        <div className="bg-white border border-border/60 divide-y divide-border/60" data-testid="leads-list">
+        <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60" data-testid="leads-list">
           {filtered.map((l) => {
             const stage = STAGES.find((s) => s.key === l.stage);
             const lastCall = l.call_logs?.[0];
@@ -219,22 +219,22 @@ function LeadDialog({ onSaved }) {
     finally { setSaving(false); }
   };
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader><DialogTitle className="font-serif text-2xl">New lead</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Name</Label>
-          <Input data-testid="lead-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+          <Input data-testid="lead-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Phone</Label>
-            <Input data-testid="lead-form-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+            <Input data-testid="lead-form-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Source</Label>
             <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Website", "Instagram", "Referral", "Google Ads", "Walk-in", "Other"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
@@ -243,15 +243,15 @@ function LeadDialog({ onSaved }) {
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
-          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-none" />
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. high-priority, tournament" className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={3} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="lead-form-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="lead-form-save" className="rounded-xl">
           {saving ? "Saving..." : "Save"}
         </Button>
       </DialogFooter>

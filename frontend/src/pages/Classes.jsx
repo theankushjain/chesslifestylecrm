@@ -37,7 +37,7 @@ export default function Classes() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="add-batch-btn" className="rounded-none h-10">
+            <Button data-testid="add-batch-btn" className="rounded-xl h-10">
               <Plus className="w-4 h-4 mr-1.5" /> Add
             </Button>
           </DialogTrigger>
@@ -51,7 +51,7 @@ export default function Classes() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="batches-list">
           {batches.map((b) => (
             <Link key={b.id} to={`/classes/${b.id}`} data-testid={`batch-card-${b.id}`}
-              className="bg-white border border-border/60 p-5 hover:border-primary transition-colors group">
+              className="bg-white border border-border/40 shadow-sm rounded-xl p-5 hover:border-primary transition-colors group">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="label-over text-[9px]">{b.level}</div>
@@ -73,7 +73,7 @@ export default function Classes() {
               {Array.isArray(b.schedule) && b.schedule.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {b.schedule.map((s, i) => (
-                    <span key={i} className="text-[10px] uppercase tracking-widest bg-secondary px-2 py-0.5 border border-border/60">
+                    <span key={i} className="text-[10px] uppercase tracking-widest bg-secondary px-2 py-0.5 border border-border/40 shadow-sm rounded-xl">
                       {s.day} {s.time}
                     </span>
                   ))}
@@ -82,7 +82,7 @@ export default function Classes() {
             </Link>
           ))}
           {batches.length === 0 && (
-            <div className="col-span-full p-8 text-center text-sm text-muted-foreground bg-white border border-border/60">
+            <div className="col-span-full p-8 text-center text-sm text-muted-foreground bg-white border border-border/40 shadow-sm rounded-xl">
               No batches yet. Create one to start scheduling classes.
             </div>
           )}
@@ -105,18 +105,18 @@ function BatchCreateDialog({ onSaved }) {
     finally { setSaving(false); }
   };
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader><DialogTitle className="font-serif text-2xl">New batch</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Batch name</Label>
-          <Input data-testid="batch-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" placeholder="e.g. Weekend Intermediate" />
+          <Input data-testid="batch-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" placeholder="e.g. Weekend Intermediate" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Level</Label>
             <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Beginner", "Intermediate", "Advanced"].map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
               </SelectContent>
@@ -124,16 +124,16 @@ function BatchCreateDialog({ onSaved }) {
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Coach</Label>
-            <Input value={form.coach} onChange={(e) => setForm({ ...form, coach: e.target.value })} className="rounded-none" />
+            <Input value={form.coach} onChange={(e) => setForm({ ...form, coach: e.target.value })} className="rounded-xl" />
           </div>
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={2} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={2} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="batch-form-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="batch-form-save" className="rounded-xl">
           {saving ? "Saving..." : "Create"}
         </Button>
       </DialogFooter>

@@ -92,7 +92,7 @@ export default function StudentDetail() {
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </button>
 
-      <div className="bg-white border border-border/60 p-6 mb-6">
+      <div className="bg-white border border-border/40 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-start gap-4">
           <div className="w-16 h-16 bg-primary text-primary-foreground flex items-center justify-center font-serif text-3xl">
             {student.name[0]}
@@ -109,6 +109,21 @@ export default function StudentDetail() {
               <div>{student.phone || "no phone"}</div>
               <div>Parent: {student.parent_name || "—"} · {student.parent_phone || "—"}</div>
               <div className="font-mono">₹{student.monthly_fee}/month</div>
+              
+              {(student.school || student.grade) && (
+                <div>School: {student.school || "—"} {student.grade ? `(${student.grade})` : ""}</div>
+              )}
+              {(student.father_occupation || student.mother_occupation) && (
+                <div>
+                  Parents Profession: {student.father_occupation ? `Father: ${student.father_occupation}` : ""}
+                  {student.father_occupation && student.mother_occupation ? " | " : ""}
+                  {student.mother_occupation ? `Mother: ${student.mother_occupation}` : ""}
+                </div>
+              )}
+              {student.hobby && (
+                <div>Hobbies: {student.hobby}</div>
+              )}
+
               {student.dob && (
                 <div className="flex items-center gap-1.5 pt-1">
                   <Cake className="w-3.5 h-3.5 text-brand" />
@@ -128,7 +143,7 @@ export default function StudentDetail() {
           </div>
           <div className="flex flex-col gap-2">
             {student.phone && (
-              <a href={`tel:${student.phone}`} className="p-3 border border-border/60 hover:bg-secondary" data-testid="student-call-btn">
+              <a href={`tel:${student.phone}`} className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-secondary" data-testid="student-call-btn">
                 <Phone className="w-4 h-4" />
               </a>
             )}
@@ -145,7 +160,7 @@ export default function StudentDetail() {
                 }}
                 data-testid="student-whatsapp-btn"
                 title={nextBirthdayDays(student.dob) === 0 ? "Send birthday wish" : "Send WhatsApp reminder"}
-                className="p-3 border border-border/60 text-[#25D366] hover:bg-[#25D366]/10">
+                className="p-3 border border-border/40 shadow-sm rounded-xl text-[#25D366] hover:bg-[#25D366]/10">
                 <WhatsappIcon className="w-4 h-4" />
               </button>
             )}
@@ -155,17 +170,17 @@ export default function StudentDetail() {
                 const url = `${window.location.origin}/student-form/${id}`;
                 navigator.clipboard.writeText(url);
                 toast.success("Form link copied!");
-              }} className="rounded-none w-full sm:flex-1 md:flex-none">
+              }} className="rounded-xl w-full sm:flex-1 md:flex-none">
                 <Copy className="w-4 h-4 mr-2" /> Copy Form Link
               </Button>
-              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">Create Account</Button>
-              <Button onClick={() => setEditOpen(true)} className="rounded-none w-full sm:flex-1 md:flex-none">
+              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-xl w-full sm:flex-1 md:flex-none">Create Account</Button>
+              <Button onClick={() => setEditOpen(true)} className="rounded-xl w-full sm:flex-1 md:flex-none">
                 <Pencil className="w-4 h-4 mr-2" /> Edit
               </Button>
             </div>)}
             {canDelete && (
               <button onClick={() => setDeleteOpen(true)} data-testid="student-delete-btn"
-                className="p-3 border border-border/60 hover:bg-destructive hover:text-destructive-foreground" title="Delete">
+                className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-destructive hover:text-destructive-foreground" title="Delete">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -180,7 +195,7 @@ export default function StudentDetail() {
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="rounded-none">
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-serif text-2xl">Delete this student?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -188,9 +203,9 @@ export default function StudentDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-none" data-testid="student-delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl" data-testid="student-delete-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} data-testid="student-delete-confirm"
-              className="rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -203,11 +218,11 @@ export default function StudentDetail() {
       </Dialog>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b border-border/60 bg-transparent p-0 mb-6 h-auto">
-          <TabsTrigger value="overview" className="rounded-none py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
+        <TabsList className="w-full justify-start rounded-xl border-b border-border/60 bg-transparent p-0 mb-6 h-auto">
+          <TabsTrigger value="overview" className="rounded-xl py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="progress" className="rounded-none py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
+          <TabsTrigger value="progress" className="rounded-xl py-3 px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none font-serif text-lg">
             Learning Progress
           </TabsTrigger>
         </TabsList>
@@ -223,20 +238,20 @@ export default function StudentDetail() {
                 max={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setAttendanceDate(e.target.value)}
                 data-testid="attendance-date-picker"
-                className="rounded-none w-auto"
+                className="rounded-xl w-auto"
               />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <Button onClick={() => markAttendance("present")} data-testid="mark-present" className="rounded-none bg-success hover:bg-success/90">Present</Button>
-              <Button onClick={() => markAttendance("absent")} data-testid="mark-absent" variant="destructive" className="rounded-none">Absent</Button>
-              <Button onClick={() => markAttendance("late")} data-testid="mark-late" className="rounded-none bg-warning hover:bg-warning/90 text-white">Late</Button>
+              <Button onClick={() => markAttendance("present")} data-testid="mark-present" className="rounded-xl bg-success hover:bg-success/90">Present</Button>
+              <Button onClick={() => markAttendance("absent")} data-testid="mark-absent" variant="destructive" className="rounded-xl">Absent</Button>
+              <Button onClick={() => markAttendance("late")} data-testid="mark-late" className="rounded-xl bg-warning hover:bg-warning/90 text-white">Late</Button>
             </div>
           </div>
 
           {/* Payments */}
           <div>
             <div className="label-over mb-2">Fees</div>
-            <div className="bg-white border border-border/60 divide-y divide-border/60">
+            <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
               {payments.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-4">
                   <div>
@@ -245,7 +260,7 @@ export default function StudentDetail() {
                   </div>
                   <div className="flex items-center gap-2">
                     {p.status !== "paid" ? (
-                      <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-none">Mark paid</Button>
+                      <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
                     ) : (
                       <span className="text-xs text-success uppercase tracking-widest">Paid</span>
                     )}
@@ -267,7 +282,7 @@ export default function StudentDetail() {
                 View Report
               </Link>
             </div>
-            <div className="bg-white border border-border/60 divide-y divide-border/60">
+            <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
               {attendance.slice(0, 10).map((a) => {
                 const Icon = STATUS_ICONS[a.status]?.icon || Clock;
                 const color = STATUS_ICONS[a.status]?.color || "";
@@ -304,7 +319,10 @@ function StudentEditDialog({ student, onSaved }) {
     name: student.name, phone: student.phone || "", parent_name: student.parent_name || "",
     parent_phone: student.parent_phone || "", level: student.level || "Beginner",
     monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
-    dob: student.dob || "", tags: student.tags || []
+    dob: student.dob || "", tags: student.tags || [],
+    school: student.school || "", grade: student.grade || "",
+    father_occupation: student.father_occupation || "", mother_occupation: student.mother_occupation || "",
+    hobby: student.hobby || ""
   });
   const [tagsStr, setTagsStr] = useState((Array.isArray(student.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
@@ -324,24 +342,24 @@ function StudentEditDialog({ student, onSaved }) {
   };
 
   return (
-    <DialogContent className="rounded-none max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">Edit student</DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
         <div>
           <Label className="text-xs uppercase tracking-widest">Name</Label>
-          <Input data-testid="student-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-none" />
+          <Input data-testid="student-edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Phone</Label>
-            <Input data-testid="student-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-none" />
+            <Input data-testid="student-edit-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Level</Label>
             <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>{LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -349,22 +367,46 @@ function StudentEditDialog({ student, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Parent name</Label>
-            <Input value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} className="rounded-none" />
+            <Input value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Parent phone</Label>
-            <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-none" />
+            <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-xl" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
+            <Label className="text-xs uppercase tracking-widest">School</Label>
+            <Input value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} className="rounded-xl" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Grade/Class</Label>
+            <Input value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className="rounded-xl" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Father's Profession</Label>
+            <Input value={form.father_occupation} onChange={(e) => setForm({ ...form, father_occupation: e.target.value })} className="rounded-xl" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Mother's Profession</Label>
+            <Input value={form.mother_occupation} onChange={(e) => setForm({ ...form, mother_occupation: e.target.value })} className="rounded-xl" />
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Hobbies</Label>
+          <Input value={form.hobby} onChange={(e) => setForm({ ...form, hobby: e.target.value })} className="rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
             <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
-            <Input type="number" data-testid="student-edit-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-none" />
+            <Input type="number" data-testid="student-edit-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Status</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger className="rounded-none"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
@@ -376,19 +418,19 @@ function StudentEditDialog({ student, onSaved }) {
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
-          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none" rows={3} />
+          <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={3} />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
-          <Input type="date" data-testid="student-edit-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-none" />
+          <Input type="date" data-testid="student-edit-dob" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="rounded-xl" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Tags (comma-separated)</Label>
-          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-none" />
+          <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} placeholder="e.g. VIP, sibling, tournament" className="rounded-xl" />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !form.name} data-testid="student-edit-save" className="rounded-none">
+        <Button onClick={save} disabled={saving || !form.name} data-testid="student-edit-save" className="rounded-xl">
           {saving ? "Saving..." : "Save changes"}
         </Button>
       </DialogFooter>
@@ -425,7 +467,7 @@ function StudentAccountDialog({ student, onSaved }) {
 
   if (created) {
     return (
-      <DialogContent className="rounded-none max-w-sm">
+      <DialogContent className="rounded-xl max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">Account Created</DialogTitle>
         </DialogHeader>
@@ -437,33 +479,33 @@ function StudentAccountDialog({ student, onSaved }) {
           </div>
         </div>
         <DialogFooter className="flex-col gap-2">
-          <Button onClick={handleWhatsapp} className="rounded-none w-full bg-[#25D366] hover:bg-[#25D366]/90 text-white">
+          <Button onClick={handleWhatsapp} className="rounded-xl w-full bg-[#25D366] hover:bg-[#25D366]/90 text-white">
             <WhatsappIcon className="w-4 h-4 mr-2" /> Share via WhatsApp
           </Button>
-          <Button variant="outline" onClick={onSaved} className="rounded-none w-full">Close</Button>
+          <Button variant="outline" onClick={onSaved} className="rounded-xl w-full">Close</Button>
         </DialogFooter>
       </DialogContent>
     );
   }
 
   return (
-    <DialogContent className="rounded-none max-w-sm">
+    <DialogContent className="rounded-xl max-w-sm">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">Create Portal Account</DialogTitle>
       </DialogHeader>
       <div className="space-y-4 py-2">
         <div>
           <Label className="text-xs uppercase tracking-widest">Email (Login ID)</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-none mt-1" />
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-xl mt-1" />
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Password</Label>
-          <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="rounded-none mt-1" />
+          <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="rounded-xl mt-1" />
           <p className="text-xs text-muted-foreground mt-1">A secure password has been auto-generated.</p>
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={createAccount} disabled={saving || !form.email || !form.password} className="rounded-none w-full">
+        <Button onClick={createAccount} disabled={saving || !form.email || !form.password} className="rounded-xl w-full">
           {saving ? "Creating..." : "Create Account"}
         </Button>
       </DialogFooter>

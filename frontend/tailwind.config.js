@@ -27,10 +27,11 @@ module.exports = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        brand: '#D4AF37',
-        success: '#16A34A',
-        warning: '#D97706',
-        info: '#2563EB',
+        brand: '#F58B10',
+        success: '#10B981', // Slightly softer green
+        warning: '#F59E0B', // Vibrant amber
+        info: '#3B82F6', // Brighter blue
+        navy: '#242B38', // Brand Navy
       },
       keyframes: {
         'accordion-down': { from: { height: '0' }, to: { height: 'var(--radix-accordion-content-height)' } },

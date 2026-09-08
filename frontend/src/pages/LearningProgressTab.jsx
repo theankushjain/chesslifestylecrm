@@ -122,19 +122,19 @@ export default function LearningProgressTab({ student }) {
           <p className="text-sm text-muted-foreground">Mark completed items. You can also add custom outcomes within any module.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => downloadProgressReport(student, outcomes)} className="rounded-none">
+          <Button variant="outline" onClick={() => downloadProgressReport(student, outcomes)} className="rounded-xl">
             <Download className="w-4 h-4 mr-2" /> Download PDF
           </Button>
-          <Button variant="outline" onClick={shareLink} className="rounded-none text-[#25D366] hover:text-[#25D366] hover:bg-[#25D366]/10">
+          <Button variant="outline" onClick={shareLink} className="rounded-xl text-[#25D366] hover:text-[#25D366] hover:bg-[#25D366]/10">
             <WhatsappIcon className="w-4 h-4 mr-2" /> Share Link
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="rounded-none">
+          <Button onClick={handleSave} disabled={saving} className="rounded-xl">
             <Save className="w-4 h-4 mr-2" /> {saving ? "Saving..." : "Save Progress"}
           </Button>
         </div>
       </div>
 
-      <Accordion type="single" collapsible className="w-full bg-white border border-border/60">
+      <Accordion type="single" collapsible className="w-full bg-white border border-border/40 shadow-sm rounded-xl">
         {levels.map((level, i) => (
           <AccordionItem key={i} value={level} className="border-b last:border-0 border-border/60">
             <AccordionTrigger className="px-4 hover:bg-gray-50 hover:no-underline font-serif text-lg">
@@ -164,7 +164,7 @@ export default function LearningProgressTab({ student }) {
                                     <Input 
                                       value={outcome.text} 
                                       onChange={(e) => handleTextChange(outcome.id, e.target.value)} 
-                                      className="h-8 rounded-none mt-1" 
+                                      className="h-8 rounded-xl mt-1" 
                                     />
                                   ) : (
                                     outcome.text
@@ -177,7 +177,7 @@ export default function LearningProgressTab({ student }) {
                                       type="date" 
                                       value={outcome.completed_date || ""}
                                       onChange={(e) => handleDateChange(outcome.id, e.target.value)}
-                                      className="h-7 text-xs w-36 rounded-none"
+                                      className="h-7 text-xs w-36 rounded-xl"
                                     />
                                   </div>
                                 )}
@@ -189,7 +189,7 @@ export default function LearningProgressTab({ student }) {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-6 text-xs rounded-none text-muted-foreground hover:text-primary"
+                                className="h-6 text-xs rounded-xl text-muted-foreground hover:text-primary"
                                 onClick={() => handleAddCustom(level, module, k)}
                               >
                                 <Plus className="w-3 h-3 mr-1" /> Add custom below

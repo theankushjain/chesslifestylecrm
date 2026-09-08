@@ -57,7 +57,7 @@ export default function Profile() {
         <p className="text-muted-foreground mt-1">Manage your account settings and password.</p>
       </div>
 
-      <Card className="rounded-none border-border/60">
+      <Card className="rounded-xl border-border/60">
         <CardHeader className="bg-secondary/30 border-b border-border/60">
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5 text-primary" /> Profile Details
@@ -71,7 +71,7 @@ export default function Profile() {
               <Input 
                 value={form.name} 
                 onChange={(e) => setForm({ ...form, name: e.target.value })} 
-                className="rounded-none" 
+                className="rounded-xl" 
                 required
               />
             </div>
@@ -88,7 +88,7 @@ export default function Profile() {
                   placeholder="Leave blank to keep current password"
                   value={form.password} 
                   onChange={(e) => setForm({ ...form, password: e.target.value })} 
-                  className="rounded-none" 
+                  className="rounded-xl" 
                 />
               </div>
               
@@ -99,14 +99,14 @@ export default function Profile() {
                     type="password"
                     value={form.confirmPassword} 
                     onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} 
-                    className="rounded-none" 
+                    className="rounded-xl" 
                     required
                   />
                 </div>
               )}
             </div>
 
-            <Button type="submit" disabled={saving || !form.name} className="rounded-none w-full md:w-auto mt-4">
+            <Button type="submit" disabled={saving || !form.name} className="rounded-xl w-full md:w-auto mt-4">
               {saving ? "Saving Changes..." : "Save Changes"}
             </Button>
           </form>

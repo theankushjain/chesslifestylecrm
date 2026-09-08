@@ -56,7 +56,7 @@ export default function Login() {
 
       {/* Right form */}
       <div className="flex items-center justify-center p-6 md:p-12 chess-pattern">
-        <div className="w-full max-w-md bg-white border border-border/60 p-8 md:p-10 animate-fade-in">
+        <div className="w-full max-w-md bg-white border border-border/40 shadow-sm rounded-xl p-8 md:p-10 animate-fade-in">
           <div className="mb-8">
             <div className="label-over mb-2">Sign in</div>
             <h1 className="font-serif text-4xl">Welcome back</h1>
@@ -70,7 +70,7 @@ export default function Login() {
                 id="email" type="email" required
                 data-testid="login-email"
                 value={email} onChange={(e) => setEmail(e.target.value)}
-                className="mt-1.5 rounded-none border-x-0 border-t-0 border-b-2 px-0 focus-visible:ring-0 focus-visible:border-primary"
+                className="mt-1.5 rounded-xl border-x-0 border-t-0 border-b-2 px-0 focus-visible:ring-0 focus-visible:border-primary"
                 placeholder="you@academy.com"
               />
             </div>
@@ -80,12 +80,12 @@ export default function Login() {
                 id="password" type="password" required
                 data-testid="login-password"
                 value={password} onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 rounded-none border-x-0 border-t-0 border-b-2 px-0 focus-visible:ring-0 focus-visible:border-primary"
+                className="mt-1.5 rounded-xl border-x-0 border-t-0 border-b-2 px-0 focus-visible:ring-0 focus-visible:border-primary"
                 placeholder="••••••••"
               />
             </div>
             <Button type="submit" disabled={loading} data-testid="login-submit"
-              className="w-full rounded-none h-11 text-sm tracking-widest uppercase">
+              className="w-full rounded-xl h-11 text-sm tracking-widest uppercase">
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
