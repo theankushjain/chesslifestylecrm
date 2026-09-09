@@ -16,6 +16,74 @@ import { exportToCSV } from "@/lib/export";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
+function MonthlyProgressDialog() {
+  const [open, setOpen] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadReports = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/reports/monthly-progress");
+      setReports(data);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) loadReports();
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="rounded-xl h-10 border-[#F58B10] text-[#F58B10] hover:bg-[#F58B10]/10">
+          Monthly Reports
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-serif">Monthly Progress Reports</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          <p className="text-sm text-slate-500 mb-4">Students who have progressed this month:</p>
+          {loading ? (
+            <div className="text-sm text-center py-4">Loading...</div>
+          ) : reports.length === 0 ? (
+            <div className="text-sm text-center py-4 text-slate-500">No students progressed this month yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {reports.map((s) => {
+                const phone = s.parent_phone || s.phone;
+                const message = `Hello! We are excited to share ${s.name}'s chess progress report for this month. \n\nView Progress: ${window.location.origin}/p/progress/${s.id}\n\nWe value your input! Please let us know how we're doing by filling out this quick feedback form:\n${window.location.origin}/p/feedback/${s.id}`;
+                return (
+                  <div key={s.id} className="flex items-center justify-between p-3 border rounded-xl bg-slate-50">
+                    <div>
+                      <div className="font-semibold">{s.name}</div>
+                      <div className="text-xs text-slate-500">Level: {s.level}</div>
+                    </div>
+                    {phone ? (
+                      <Button size="sm" onClick={() => window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`, '_blank')} className="bg-[#25D366] hover:bg-[#1DA851] text-white">
+                        <WhatsappIcon className="w-4 h-4 mr-2" />
+                        Send Update
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-red-400">No phone</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Students() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -71,6 +139,7 @@ export default function Students() {
           <Button variant="outline" onClick={() => window.open("/print-blank-form", "_blank")} className="rounded-xl h-10" title="Download blank registration form PDF">
             <Printer className="w-4 h-4 mr-1.5" /> Blank Form
           </Button>
+          {user?.role === "admin" && <MonthlyProgressDialog />}
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="add-student-btn" className="rounded-xl h-10">

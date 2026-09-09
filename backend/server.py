@@ -279,6 +279,11 @@ class TaskIn(BaseModel):
 class TaskUpdate(BaseModel):
     status: str
 
+class FeedbackIn(BaseModel):
+    satisfaction: int
+    pacing: str
+    suggestions: str
+
 class ProgressOutcome(BaseModel):
     id: str
     level: str
@@ -734,13 +739,43 @@ async def update_student_progress(sid: str, body: ProgressOutcomesIn, user: dict
     doc = await db.student_progress.find_one({"student_id": sid})
     if not doc:
         raise HTTPException(404, "Not found")
+        
+    now_str = iso(now_utc())
+    for o in body.outcomes:
+        if o.completed and not o.completed_date:
+            o.completed_date = now_str
+        elif not o.completed:
+            o.completed_date = None
+            
     outcomes_dict = [o.model_dump() for o in body.outcomes]
     await db.student_progress.update_one(
         {"_id": doc["_id"]},
-        {"$set": {"outcomes": outcomes_dict, "updated_at": iso(now_utc())}}
+        {"$set": {"outcomes": outcomes_dict, "updated_at": now_str}}
     )
     doc["outcomes"] = outcomes_dict
     return clean(doc)
+
+@api.get("/reports/monthly-progress")
+async def get_monthly_progress(user: dict = Depends(require_roles("admin", "staff"))):
+    now = datetime.now(timezone.utc)
+    current_month_str = now.strftime("%Y-%m")
+    
+    docs = await db.student_progress.find({}).to_list(length=None)
+    results = []
+    for p in docs:
+        outcomes = p.get("outcomes", [])
+        progressed = any(o.get("completed_date", "").startswith(current_month_str) for o in outcomes)
+        if progressed:
+            student = await db.students.find_one({"_id": p["student_id"]})
+            if student:
+                results.append({
+                    "id": student["_id"],
+                    "name": student.get("name"),
+                    "phone": student.get("phone"),
+                    "parent_phone": student.get("parent_phone"),
+                    "level": student.get("level")
+                })
+    return results
 
 @api.get("/public/progress/{sid}")
 async def get_public_progress(sid: str):
@@ -748,7 +783,7 @@ async def get_public_progress(sid: str):
     if not student:
         raise HTTPException(404, "Not found")
     progress = await sync_student_progress(sid)
-    outcomes = progress.get("outcomes", [])
+    outcomes = [o for o in progress.get("outcomes", []) if o.get("completed")]
     
     return {
         "student_name": student["name"],
@@ -770,6 +805,30 @@ async def login(body: LoginBody, response: Response):
     token = make_token(user["_id"], user["role"])
     set_auth_cookie(response, token)
     return {"token": token, "user": clean(user)}
+
+@api.post("/public/feedback/{sid}")
+async def submit_feedback(sid: str, body: FeedbackIn):
+    student = await db.students.find_one({"_id": sid})
+    if not student:
+        raise HTTPException(404, "Student not found")
+    
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "student_id": sid,
+        "student_name": student.get("name", "Unknown"),
+        "satisfaction": body.satisfaction,
+        "pacing": body.pacing,
+        "suggestions": body.suggestions,
+        "created_at": iso(now_utc())
+    }
+    await db.feedback.insert_one(doc)
+    return {"status": "success"}
+
+@api.get("/feedback")
+async def get_all_feedback(user: dict = Depends(require_roles("admin", "staff"))):
+    cursor = db.feedback.find({}).sort("created_at", -1)
+    results = await cursor.to_list(length=1000)
+    return [clean(r) for r in results]
 
 @api.post("/auth/logout")
 async def logout(response: Response):

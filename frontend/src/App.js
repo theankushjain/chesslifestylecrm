@@ -22,6 +22,8 @@ import AttendanceReport from "@/pages/AttendanceReport";
 import ProgressReportView from "@/pages/ProgressReportView";
 import StudentForm from "@/pages/StudentForm";
 import PrintBlankForm from "@/pages/PrintBlankForm";
+import FeedbackForm from "@/pages/FeedbackForm";
+import FeedbackDashboard from "@/pages/FeedbackDashboard";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -47,6 +49,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/p/progress/:id" element={<ProgressReportView />} />
+            <Route path="/p/feedback/:id" element={<FeedbackForm />} />
             <Route path="/student-form/:id" element={<StudentForm />} />
             <Route path="/print-blank-form" element={<PrintBlankForm />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
@@ -62,6 +65,7 @@ function App() {
               <Route path="chat" element={<Protected roles={["admin"]}><Chatbot /></Protected>} />
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
               <Route path="attendance" element={<Protected roles={["admin", "staff"]}><AttendanceReport /></Protected>} />
+              <Route path="feedback" element={<Protected roles={["admin"]}><FeedbackDashboard /></Protected>} />
               <Route path="tasks" element={<Protected><Tasks /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />
               <Route path="profile" element={<Protected><Profile /></Protected>} />

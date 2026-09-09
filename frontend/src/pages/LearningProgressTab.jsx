@@ -97,7 +97,17 @@ export default function LearningProgressTab({ student }) {
 
   const shareLink = () => {
     const url = `${window.location.origin}/p/progress/${student.id}`;
-    const msg = `Hi! You can view ${student.name}'s latest learning progress report anytime by clicking this link:\n\n${url}`;
+    const feedbackUrl = `${window.location.origin}/p/feedback/${student.id}`;
+    const msg = `Hi! You can view ${student.name}'s latest learning progress report anytime by clicking this link:\n\n${url}\n\nWe value your input! Please let us know how we're doing by filling out this quick feedback form:\n${feedbackUrl}`;
+    const ok = openWhatsapp(student.parent_phone || student.phone, msg);
+    if (!ok) toast.error("No valid phone number for student/parent.");
+  };
+
+  const shareLevelCongrats = (e, level) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/p/progress/${student.id}`;
+    const feedbackUrl = `${window.location.origin}/p/feedback/${student.id}`;
+    const msg = `Congratulations! ${student.name} has successfully completed the ${level} level. We are so proud of their progress! \n\nView Progress: ${url}\n\nWe value your input! Please let us know how we're doing by filling out this quick feedback form:\n${feedbackUrl}`;
     const ok = openWhatsapp(student.parent_phone || student.phone, msg);
     if (!ok) toast.error("No valid phone number for student/parent.");
   };
@@ -135,11 +145,20 @@ export default function LearningProgressTab({ student }) {
       </div>
 
       <Accordion type="single" collapsible className="w-full bg-white border border-border/40 shadow-sm rounded-xl">
-        {levels.map((level, i) => (
-          <AccordionItem key={i} value={level} className="border-b last:border-0 border-border/60">
-            <AccordionTrigger className="px-4 hover:bg-gray-50 hover:no-underline font-serif text-lg">
-              {level}
-            </AccordionTrigger>
+        {levels.map((level, i) => {
+          const allOutcomes = Object.values(grouped[level]).flat();
+          const levelCompleted = allOutcomes.length > 0 && allOutcomes.every(o => o.completed);
+          
+          return (
+            <AccordionItem key={i} value={level} className="border-b last:border-0 border-border/60">
+              <AccordionTrigger className="px-4 hover:bg-gray-50 hover:no-underline font-serif text-lg flex items-center justify-between">
+                <span>{level} {levelCompleted && <span className="text-xs ml-2 text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans">Completed</span>}</span>
+                {levelCompleted && (
+                  <Button size="sm" onClick={(e) => shareLevelCongrats(e, level)} className="ml-auto mr-4 bg-[#25D366] hover:bg-[#1DA851] text-white h-7 text-xs rounded-lg">
+                    <WhatsappIcon className="w-3.5 h-3.5 mr-1.5" /> Send Congrats
+                  </Button>
+                )}
+              </AccordionTrigger>
             <AccordionContent className="p-0 border-t border-border/60">
               <Accordion type="multiple" className="w-full">
                 {Object.keys(grouped[level]).map((module, j) => (
@@ -204,7 +223,7 @@ export default function LearningProgressTab({ student }) {
               </Accordion>
             </AccordionContent>
           </AccordionItem>
-        ))}
+        )})}
       </Accordion>
     </div>
   );

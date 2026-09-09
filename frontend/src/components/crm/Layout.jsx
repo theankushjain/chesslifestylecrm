@@ -14,6 +14,7 @@ const NAV = [
   { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin"] },
   { to: "/tasks", label: "To-Do", icon: CheckSquare, testid: "nav-tasks", roles: ["admin", "staff", "student"] },
   { to: "/tally", label: "Tally", icon: TrendingUp, testid: "nav-tally", roles: ["admin"] },
+  { to: "/feedback", label: "Feedback", icon: MessageSquare, testid: "nav-feedback", roles: ["admin"] },
   { to: "/users", label: "Users", icon: UserCog, testid: "nav-users", roles: ["admin"] },
   { to: "/chat", label: "AI", icon: MessageSquare, testid: "nav-chat", roles: ["admin"] },
   { to: "/portal", label: "My Portal", icon: User, testid: "nav-portal", roles: ["student"] },
