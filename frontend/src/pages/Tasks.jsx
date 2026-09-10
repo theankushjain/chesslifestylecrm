@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckSquare, Calendar, User as UserIcon } from "lucide-react";
+import { CheckSquare, Calendar, User as UserIcon, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { useAuth } from "@/context/AuthContext";
 import { format } from "date-fns";
 
@@ -97,6 +99,31 @@ export default function Tasks() {
   const pendingTasks = displayTasks.filter(t => t.status !== "completed");
   const completedTasks = displayTasks.filter(t => t.status === "completed");
 
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Tasks List", 14, 15);
+    
+    const tableColumn = ["Task Title", "Assignee", "Due Date", "Status"];
+    const tableRows = [];
+
+    displayTasks.forEach(task => {
+      const taskData = [
+        task.title,
+        getAssigneeLabel(task.assignee),
+        task.due_date ? format(new Date(task.due_date), "MMM d, yyyy") : "-",
+        task.status
+      ];
+      tableRows.push(taskData);
+    });
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+    doc.save("tasks_list.pdf");
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -109,12 +136,17 @@ export default function Tasks() {
             <p className="text-muted-foreground mt-1">Manage tasks and homework assignments.</p>
           </div>
         </div>
-        {user?.role === "admin" && (
-          <div className="flex items-center gap-1 bg-secondary p-1 rounded-lg">
-            <Button variant={!filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(false)} className="rounded-md">All Tasks</Button>
-            <Button variant={filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(true)} className="rounded-md">My Tasks</Button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={exportPDF} className="gap-2 h-9">
+            <Download className="w-4 h-4" /> Download PDF
+          </Button>
+          {user?.role === "admin" && (
+            <div className="flex items-center gap-1 bg-secondary p-1 rounded-lg">
+              <Button variant={!filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(false)} className="rounded-md">All Tasks</Button>
+              <Button variant={filterMyTasks ? "default" : "ghost"} size="sm" onClick={() => setFilterMyTasks(true)} className="rounded-md">My Tasks</Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
