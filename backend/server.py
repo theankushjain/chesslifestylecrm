@@ -845,18 +845,18 @@ async def public_register(body: RegistrationIn):
     
     # Notify admins
     admins = await db.users.find({"role": "admin"}).to_list(None)
-    for admin in admins:
-        subs = await db.push_subscriptions.find({"user_id": admin["username"]}).to_list(None)
-        for sub in subs:
-            try:
-                webpush(
-                    subscription_info=sub["subscription"],
-                    data=f"New Registration: {body.child_name} (Parent: {body.parent_name})",
-                    vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS
-                )
-            except WebPushException:
-                pass
+    admin_ids = [a["_id"] for a in admins]
+    subs = await db.push_subscriptions.find({"user_id": {"$in": admin_ids}}).to_list(None)
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info=sub["subscription"],
+                data=f"New Registration: {body.child_name} (Parent: {body.parent_name})",
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
+            )
+        except WebPushException:
+            pass
                 
     return {"message": "Registration submitted successfully", "id": doc["_id"]}
 
