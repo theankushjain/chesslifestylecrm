@@ -1259,6 +1259,17 @@ async def alerts(user: dict = Depends(require_roles("admin", "staff"))):
                     "lead_id": l["_id"],
                 })
 
+        # Alert for new online registrations
+        new_leads = await db.leads.find({"stage": "new"}).to_list(500)
+        for l in new_leads:
+            alerts_list.append({
+                "id": l["_id"], "type": "lead_followup",
+                "severity": "high",
+                "title": f"New Registration: {l['name']}",
+                "message": "A new student registered online. Follow up now!",
+                "lead_id": l["_id"],
+            })
+
         from_date = (today - timedelta(days=14)).isoformat()
         for s in students:
             absences = await db.attendance.count_documents({
