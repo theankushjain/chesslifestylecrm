@@ -838,8 +838,8 @@ async def public_register(body: RegistrationIn):
         "notes": f"Child: {body.child_name}\nDOB: {body.child_dob}\nClass: {body.child_class}\nExperience: {body.child_experience}",
         "next_follow_up": None,
         "tags": ["Online Registration"],
-        "created_at": datetime.datetime.utcnow().isoformat(),
-        "updated_at": datetime.datetime.utcnow().isoformat()
+        "created_at": iso(now_utc()),
+        "updated_at": iso(now_utc())
     }
     await db.leads.insert_one(doc)
     
