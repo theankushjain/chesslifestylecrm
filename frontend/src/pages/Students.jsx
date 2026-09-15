@@ -194,7 +194,7 @@ export default function Students() {
                 </div>
               </Link>
               <div className="flex items-center gap-2 shrink-0 px-4">
-                <span className="text-xs font-mono hidden sm:inline">₹{s.monthly_fee}/mo</span>
+                <span className="text-xs font-mono hidden sm:inline">₹{s.fee_amount || s.monthly_fee}/{s.fee_type === "per_class" ? "class" : "mo"}</span>
                 {s.status === "active" ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Circle className="w-3.5 h-3.5 text-muted-foreground" />}
                 {(s.parent_phone || s.phone) && (
                   <button
@@ -226,7 +226,7 @@ export default function Students() {
 function StudentDialog({ onSaved, student }) {
   const [form, setForm] = useState(student || {
     name: "", phone: "", parent_name: "", parent_phone: "",
-    level: "Beginner", monthly_fee: 2500, notes: "", status: "active", dob: "", tags: []
+    level: "Beginner", monthly_fee: 2500, fee_type: "monthly", fee_amount: 2500, notes: "", status: "active", dob: "", tags: []
   });
   const [tagsStr, setTagsStr] = useState((Array.isArray(student?.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
@@ -283,9 +283,21 @@ function StudentDialog({ onSaved, student }) {
             <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-xl" />
           </div>
         </div>
-        <div>
-          <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
-          <Input type="number" data-testid="student-form-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-xl" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Fee Type</Label>
+            <Select value={form.fee_type} onValueChange={(v) => setForm({ ...form, fee_type: v })}>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="per_class">Per Class</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Fee Amount (₹)</Label>
+            <Input type="number" data-testid="student-form-fee" value={form.fee_amount} onChange={(e) => setForm({ ...form, fee_amount: Number(e.target.value) })} className="rounded-xl" />
+          </div>
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>

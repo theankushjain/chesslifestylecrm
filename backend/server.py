@@ -125,6 +125,8 @@ class StudentIn(BaseModel):
     parent_phone: str = ""
     level: str = "Beginner"
     monthly_fee: float = 0
+    fee_type: str = "monthly"
+    fee_amount: float = 0
     notes: str = ""
     status: str = "active"
     dob: Optional[str] = None  # YYYY-MM-DD
@@ -147,6 +149,8 @@ class StudentUpdate(BaseModel):
     parent_phone: Optional[str] = None
     level: Optional[str] = None
     monthly_fee: Optional[float] = None
+    fee_type: Optional[str] = None
+    fee_amount: Optional[float] = None
     notes: Optional[str] = None
     status: Optional[str] = None
     dob: Optional[str] = None
@@ -284,6 +288,14 @@ class FeedbackIn(BaseModel):
     pacing: str
     suggestions: str
 
+class RegistrationIn(BaseModel):
+    parent_name: str
+    contact_number: str
+    child_name: str
+    child_dob: str
+    child_class: str
+    child_experience: str
+
 class ProgressOutcome(BaseModel):
     id: str
     level: str
@@ -387,6 +399,14 @@ async def notify_unpaid_fees():
             
         count = len(unpaid)
         total_amount = sum(p.get("amount", 0) for p in unpaid)
+        
+        # Convert unpaid students to "on hold"
+        unpaid_student_ids = list(set([p["student_id"] for p in unpaid]))
+        if unpaid_student_ids:
+            await db.students.update_many(
+                {"_id": {"$in": unpaid_student_ids}, "status": "active"},
+                {"$set": {"status": "on hold"}}
+            )
         
         admins = await db.users.find({"role": "admin"}).to_list(None)
         admin_ids = [a["_id"] for a in admins]
@@ -806,6 +826,40 @@ async def login(body: LoginBody, response: Response):
     set_auth_cookie(response, token)
     return {"token": token, "user": clean(user)}
 
+@api.post("/public/register")
+async def public_register(body: RegistrationIn):
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "name": body.parent_name,
+        "phone": body.contact_number,
+        "email": "",
+        "source": "Registration Form",
+        "stage": "new",
+        "notes": f"Child: {body.child_name}\nDOB: {body.child_dob}\nClass: {body.child_class}\nExperience: {body.child_experience}",
+        "next_follow_up": None,
+        "tags": ["Online Registration"],
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "updated_at": datetime.datetime.utcnow().isoformat()
+    }
+    await db.leads.insert_one(doc)
+    
+    # Notify admins
+    admins = await db.users.find({"role": "admin"}).to_list(None)
+    for admin in admins:
+        subs = await db.push_subscriptions.find({"user_id": admin["username"]}).to_list(None)
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info=sub["subscription"],
+                    data=f"New Registration: {body.child_name} (Parent: {body.parent_name})",
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException:
+                pass
+                
+    return {"message": "Registration submitted successfully", "id": doc["_id"]}
+
 @api.post("/public/feedback/{sid}")
 async def submit_feedback(sid: str, body: FeedbackIn):
     student = await db.students.find_one({"_id": sid})
@@ -1007,18 +1061,40 @@ async def generate_payments(user: dict = Depends(require_roles("admin", "staff")
     for s in students:
         existing = await db.payments.find_one({"student_id": s["_id"], "year": cur_year, "month": cur_month})
         if not existing:
-            doc = {
-                "_id": str(uuid.uuid4()),
-                "student_id": s["_id"],
-                "year": cur_year,
-                "month": cur_month,
-                "amount": s.get("monthly_fee", 0),
-                "status": "unpaid",
-                "method": "",
-                "created_at": iso(now_utc())
-            }
-            await db.payments.insert_one(doc)
-            generated += 1
+            # Determine fee amount based on fee_type
+            fee_type = s.get("fee_type", "monthly")
+            fee_amount = s.get("fee_amount", s.get("monthly_fee", 0))
+            
+            amount_to_charge = 0
+            if fee_type == "per_class":
+                # count classes attended this month
+                month_start = f"{cur_year}-{cur_month:02d}-01"
+                next_month = cur_month + 1 if cur_month < 12 else 1
+                next_year = cur_year if cur_month < 12 else cur_year + 1
+                month_end = f"{next_year}-{next_month:02d}-01"
+                
+                attendances = await db.attendance.find({
+                    "student_id": s["_id"],
+                    "status": "present",
+                    "date": {"$gte": month_start, "$lt": month_end}
+                }).to_list(None)
+                amount_to_charge = len(attendances) * fee_amount
+            else:
+                amount_to_charge = fee_amount
+            
+            if amount_to_charge > 0:
+                doc = {
+                    "_id": str(uuid.uuid4()),
+                    "student_id": s["_id"],
+                    "year": cur_year,
+                    "month": cur_month,
+                    "amount": amount_to_charge,
+                    "status": "unpaid",
+                    "method": "",
+                    "created_at": iso(now_utc())
+                }
+                await db.payments.insert_one(doc)
+                generated += 1
             
     return {"generated": generated}
 
@@ -1043,6 +1119,9 @@ async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(req
     # Sync with Tally if marked paid
     if was_unpaid and doc.get("status") == "paid":
         student = await db.students.find_one({"_id": doc["student_id"]})
+        if student and student.get("status") == "on hold":
+            await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
+            
         student_name = student["name"] if student else "Unknown Student"
         month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
         t_doc = {
@@ -1092,6 +1171,34 @@ async def update_lead(lid: str, body: LeadUpdate, user: dict = Depends(require_r
     if not doc:
         raise HTTPException(404, "Not found")
     return clean(doc)
+
+@api.post("/leads/{lid}/convert")
+async def convert_lead(lid: str, body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = await db.leads.find_one({"_id": lid})
+    if not doc:
+        raise HTTPException(404, "Not found")
+        
+    student_doc = {"_id": str(uuid.uuid4()), **body.model_dump(),
+                   "joined_date": iso(now_utc()), "created_at": iso(now_utc())}
+    await db.students.insert_one(student_doc)
+    
+    if body.email:
+        existing = await db.users.find_one({"email": body.email})
+        if not existing:
+            pwd_hash = bcrypt.hashpw("chess123".encode(), bcrypt.gensalt()).decode()
+            user_doc = {
+                "_id": str(uuid.uuid4()),
+                "name": body.name,
+                "email": body.email,
+                "password_hash": pwd_hash,
+                "role": "student",
+                "linked_student_id": student_doc["_id"],
+                "created_at": iso(now_utc())
+            }
+            await db.users.insert_one(user_doc)
+            
+    await db.leads.update_one({"_id": lid}, {"$set": {"stage": "enrolled", "updated_at": iso(now_utc())}})
+    return {"status": "ok", "student_id": student_doc["_id"]}
 
 @api.delete("/leads/{lid}")
 async def delete_lead(lid: str, user: dict = Depends(require_roles("admin"))):

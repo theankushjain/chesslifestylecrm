@@ -108,8 +108,10 @@ export default function StudentDetail() {
             <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
               <div>{student.phone || "no phone"}</div>
               <div>Parent: {student.parent_name || "—"} · {student.parent_phone || "—"}</div>
-              <div className="font-mono">₹{student.monthly_fee}/month</div>
-              
+              <div className="bg-secondary/30 p-4 mt-2 border border-border/40 rounded-xl space-y-3">
+                <div className="label-over text-muted-foreground">Fee Details</div>
+                <div className="font-mono">₹{student.fee_amount || student.monthly_fee}/{student.fee_type === "per_class" ? "class" : "month"}</div>
+              </div>
               {(student.school || student.grade) && (
                 <div>School: {student.school || "—"} {student.grade ? `(${student.grade})` : ""}</div>
               )}
@@ -316,12 +318,15 @@ const monthName = (m) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep",
 
 function StudentEditDialog({ student, onSaved }) {
   const [form, setForm] = useState({
-    name: student.name, phone: student.phone || "", parent_name: student.parent_name || "",
-    parent_phone: student.parent_phone || "", level: student.level || "Beginner",
-    monthly_fee: student.monthly_fee || 0, notes: student.notes || "", status: student.status || "active",
+    name: student.name, email: student.email || "", phone: student.phone || "",
+    parent_name: student.parent_name || "", parent_phone: student.parent_phone || "",
+    level: student.level, monthly_fee: student.monthly_fee || 0,
+    fee_type: student.fee_type || "monthly", fee_amount: student.fee_amount || student.monthly_fee || 0,
+    notes: student.notes || "", status: student.status || "active",
     dob: student.dob || "", tags: student.tags || [],
-    school: student.school || "", grade: student.grade || "",
-    father_occupation: student.father_occupation || "", mother_occupation: student.mother_occupation || "",
+    grade: student.grade || "", school: student.school || "",
+    father_occupation: student.father_occupation || "",
+    mother_occupation: student.mother_occupation || "",
     hobby: student.hobby || ""
   });
   const [tagsStr, setTagsStr] = useState((Array.isArray(student.tags) ? student.tags : []).join(", "));
@@ -398,10 +403,20 @@ function StudentEditDialog({ student, onSaved }) {
           <Label className="text-xs uppercase tracking-widest">Hobbies</Label>
           <Input value={form.hobby} onChange={(e) => setForm({ ...form, hobby: e.target.value })} className="rounded-xl" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs uppercase tracking-widest">Monthly fee (₹)</Label>
-            <Input type="number" data-testid="student-edit-fee" value={form.monthly_fee} onChange={(e) => setForm({ ...form, monthly_fee: Number(e.target.value) })} className="rounded-xl" />
+            <Label className="text-xs uppercase tracking-widest">Fee Type</Label>
+            <Select value={form.fee_type} onValueChange={(v) => setForm({ ...form, fee_type: v })}>
+              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="per_class">Per Class</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest">Fee Amount (₹)</Label>
+            <Input type="number" data-testid="student-edit-fee" value={form.fee_amount} onChange={(e) => setForm({ ...form, fee_amount: Number(e.target.value) })} className="rounded-xl" />
           </div>
           <div>
             <Label className="text-xs uppercase tracking-widest">Status</Label>
@@ -409,6 +424,7 @@ function StudentEditDialog({ student, onSaved }) {
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="on hold">On Hold</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="graduated">Graduated</SelectItem>
                 <SelectItem value="exited">Exited</SelectItem>

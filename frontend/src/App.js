@@ -24,6 +24,7 @@ import StudentForm from "@/pages/StudentForm";
 import PrintBlankForm from "@/pages/PrintBlankForm";
 import FeedbackForm from "@/pages/FeedbackForm";
 import FeedbackDashboard from "@/pages/FeedbackDashboard";
+import RegistrationForm from "@/pages/RegistrationForm";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ function App() {
             <Route path="/p/feedback/:id" element={<FeedbackForm />} />
             <Route path="/student-form/:id" element={<StudentForm />} />
             <Route path="/print-blank-form" element={<PrintBlankForm />} />
+            <Route path="/register" element={<RegistrationForm />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
               <Route path="students" element={<Protected roles={["admin", "staff"]}><Students /></Protected>} />

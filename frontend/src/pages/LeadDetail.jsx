@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, Calendar, PhoneCall, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Calendar, PhoneCall, Pencil, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { STAGES } from "./Leads";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +26,11 @@ export default function LeadDetail() {
   const [posting, setPosting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [convertData, setConvertData] = useState({
+    name: "", email: "", phone: "", parent_name: "", parent_phone: "", level: "Beginner"
+  });
   const canDelete = user.role === "admin";
 
   const load = async () => {
@@ -64,7 +69,43 @@ export default function LeadDetail() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
-  if (!lead) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
+  const handleOpenConvert = () => {
+    let childName = lead.name;
+    let parentName = "";
+    if (lead.notes) {
+      const cMatch = lead.notes.match(/Child:\s*(.*)/i);
+      if (cMatch) {
+        childName = cMatch[1].trim();
+        parentName = lead.name;
+      }
+    }
+    setConvertData({
+      name: childName,
+      email: lead.email || "",
+      phone: lead.phone || "",
+      parent_name: parentName,
+      parent_phone: lead.phone || "",
+      level: "Beginner"
+    });
+    setConvertOpen(true);
+  };
+
+  const handleConvert = async (e) => {
+    e.preventDefault();
+    setConverting(true);
+    try {
+      const res = await api.post(`/leads/${id}/convert`, convertData);
+      toast.success("Lead converted to student successfully!");
+      setConvertOpen(false);
+      nav(`/students/${res.data.student_id}`);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  if (!lead) return <div className="p-6 text-muted-foreground">Loading...</div>;
 
   const currentStage = STAGES.find((s) => s.key === lead.stage);
 
@@ -111,6 +152,10 @@ export default function LeadDetail() {
                 <WhatsappIcon className="w-4 h-4" />
               </button>
             )}
+            <button onClick={handleOpenConvert}
+              className="p-3 border border-border/40 shadow-sm rounded-xl text-blue-600 hover:bg-blue-50" title="Convert to Student">
+              <UserPlus className="w-4 h-4" />
+            </button>
             <button onClick={() => setEditOpen(true)} data-testid="lead-edit-btn"
               className="p-3 border border-border/40 shadow-sm rounded-xl hover:bg-secondary" title="Edit">
               <Pencil className="w-4 h-4" />
@@ -213,6 +258,66 @@ export default function LeadDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+        <DialogContent>
+          <form onSubmit={handleConvert}>
+            <DialogHeader>
+              <DialogTitle>Convert to Student</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Student Name *</Label>
+                  <Input value={convertData.name} onChange={e => setConvertData({ ...convertData, name: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Level</Label>
+                  <Select value={convertData.level} onValueChange={v => setConvertData({ ...convertData, level: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Beginner">Beginner</SelectItem>
+                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                      <SelectItem value="Advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email (Optional)</Label>
+                  <Input type="email" value={convertData.email} onChange={e => setConvertData({ ...convertData, email: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={convertData.phone} onChange={e => setConvertData({ ...convertData, phone: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Parent Name</Label>
+                  <Input value={convertData.parent_name} onChange={e => setConvertData({ ...convertData, parent_name: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Parent Phone</Label>
+                  <Input value={convertData.parent_phone} onChange={e => setConvertData({ ...convertData, parent_phone: e.target.value })} />
+                </div>
+              </div>
+              {convertData.email && (
+                <div className="text-xs text-muted-foreground pt-2">
+                  Note: An account will be created with this email and default password <strong>chess123</strong>.
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setConvertOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={converting}>
+                {converting ? "Converting..." : "Convert"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
