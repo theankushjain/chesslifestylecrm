@@ -4,14 +4,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatApiError } from "@/lib/api";
 
 export default function RegistrationForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [formData, setFormData] = useState({
     parent_name: "",
-    contact_number: "",
     child_name: "",
     child_dob: "",
     child_class: "",
@@ -27,7 +29,11 @@ export default function RegistrationForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/public/register", formData);
+      const payload = {
+        ...formData,
+        contact_number: `${countryCode} ${phoneNumber}`
+      };
+      await api.post("/public/register", payload);
       setSuccess(true);
       toast.success("Registration submitted successfully!");
     } catch (error) {
@@ -86,16 +92,32 @@ export default function RegistrationForm() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="contact_number">Contact Number</Label>
-                <Input 
-                  id="contact_number"
-                  name="contact_number" 
-                  type="tel"
-                  placeholder="e.g. +1 234 567 8900"
-                  value={formData.contact_number} 
-                  onChange={handleChange} 
-                  required 
-                />
+                <Label htmlFor="phoneNumber">Contact Number</Label>
+                <div className="flex gap-2">
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+91">🇮🇳 +91 (IN)</SelectItem>
+                      <SelectItem value="+1">🇺🇸 +1 (US/CA)</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44 (UK)</SelectItem>
+                      <SelectItem value="+61">🇦🇺 +61 (AU)</SelectItem>
+                      <SelectItem value="+971">🇦🇪 +971 (AE)</SelectItem>
+                      <SelectItem value="+65">🇸🇬 +65 (SG)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input 
+                    id="phoneNumber"
+                    name="phoneNumber" 
+                    type="tel"
+                    placeholder="e.g. 9876543210"
+                    value={phoneNumber} 
+                    onChange={(e) => setPhoneNumber(e.target.value)} 
+                    required 
+                    className="flex-1"
+                  />
+                </div>
               </div>
             </div>
 
