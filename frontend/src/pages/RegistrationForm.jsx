@@ -33,7 +33,7 @@ export default function RegistrationForm() {
         ...formData,
         contact_number: `${countryCode} ${phoneNumber}`
       };
-      await api.post("/public/register", payload);
+      await api.post("/public/enroll", payload);
       setSuccess(true);
       toast.success("Registration submitted successfully!");
     } catch (error) {

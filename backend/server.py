@@ -826,7 +826,7 @@ async def login(body: LoginBody, response: Response):
     set_auth_cookie(response, token)
     return {"token": token, "user": clean(user)}
 
-@api.post("/public/register")
+@api.post("/public/enroll")
 async def public_register(body: RegistrationIn):
     doc = {
         "_id": str(uuid.uuid4()),
