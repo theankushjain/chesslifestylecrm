@@ -64,9 +64,16 @@ export default function RegistrationForm() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 py-12">
-      <div className="mb-8 text-center">
+      <div className="mb-8 text-center max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Student Onboarding</h1>
-        <p className="mt-2 text-sm text-gray-600">Please provide a few details to get started.</p>
+        <p className="mt-2 text-sm text-gray-600 mb-6">Please provide a few details to get started.</p>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left shadow-sm">
+          <h4 className="font-semibold text-blue-900 mb-1">Note for Prateek Laurel Society Residents:</h4>
+          <p className="text-sm text-blue-800">
+            There will be 2 regular classes every weekend (Saturday and Sunday at 4pm) and 1 coverup class every Thursday at 4 pm. All this in <strong>Rs. 1800</strong> per month per student.
+          </p>
+        </div>
       </div>
       
       <Card className="w-full max-w-lg shadow-lg">
