@@ -8,6 +8,7 @@ import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { generatePDF } from "@/lib/pdfExport";
+import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
 
 export default function Payments() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function Payments() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [paymentToMark, setPaymentToMark] = useState(null);
 
   const load = async () => {
     const [p, s] = await Promise.all([api.get("/payments"), api.get("/students")]);
@@ -32,14 +34,6 @@ export default function Payments() {
     if (filter === "this_month") return p.month === now.getMonth() + 1 && p.year === now.getFullYear();
     return true;
   });
-
-  const markPaid = async (pid) => {
-    try {
-      await api.patch(`/payments/${pid}`, { status: "paid", method: "UPI" });
-      toast.success("Marked paid");
-      load();
-    } catch (e) { toast.error(formatApiError(e)); }
-  };
 
   const generateFees = async () => {
     setGenerating(true);
@@ -156,14 +150,14 @@ export default function Payments() {
                 </div>
                 {p.status === "paid" ? (
                   <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-success">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Paid {p.method ? `· ${p.method}` : ""}
                   </div>
                 ) : (
                   <>
                     <span className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 ${
                       p.status === "overdue" ? "bg-destructive text-destructive-foreground" : "bg-warning text-white"
                     }`}>{p.status}</span>
-                    <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`pay-${p.id}`} className="rounded-xl">
+                    <Button size="sm" variant="outline" onClick={() => setPaymentToMark(p)} data-testid={`pay-${p.id}`} className="rounded-xl">
                       Mark paid
                     </Button>
                     {(s?.parent_phone || s?.phone) && (
@@ -185,6 +179,14 @@ export default function Payments() {
           {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">Nothing here.</div>}
         </div>
       )}
+
+      <MarkPaidDialog
+        open={!!paymentToMark}
+        onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
+        payment={paymentToMark}
+        studentName={students[paymentToMark?.student_id]?.name || "Student"}
+        onSuccess={load}
+      />
     </div>
   );
 }

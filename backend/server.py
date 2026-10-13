@@ -1101,6 +1101,9 @@ async def generate_payments(user: dict = Depends(require_roles("admin", "staff")
 
 @api.patch("/payments/{pid}")
 async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
+    if body.amount is not None and body.amount < 0:
+        raise HTTPException(400, "Payment amount cannot be negative")
+    
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     
     payment = await db.payments.find_one({"_id": pid})

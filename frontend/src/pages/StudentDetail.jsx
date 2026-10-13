@@ -15,6 +15,7 @@ import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, studentPortalCredentialsMessage, ageFromDob, nextBirthdayDays } from "@/lib/whatsapp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LearningProgressTab from "./LearningProgressTab";
+import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -34,6 +35,7 @@ export default function StudentDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [paymentToMark, setPaymentToMark] = useState(null);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
   const canEdit = user.role === "admin" || user.role === "staff";
   const canDelete = user.role === "admin";
@@ -262,9 +264,9 @@ export default function StudentDetail() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {p.status !== "paid" ? (
-                      <Button size="sm" variant="outline" onClick={() => markPaid(p.id)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
+                      <Button size="sm" variant="outline" onClick={() => setPaymentToMark(p)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
                     ) : (
-                      <span className="text-xs text-success uppercase tracking-widest">Paid</span>
+                      <span className="text-xs text-success uppercase tracking-widest">Paid {p.method ? `(${p.method})` : ""}</span>
                     )}
                     <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
                       <Trash2 className="w-4 h-4" />
@@ -310,6 +312,14 @@ export default function StudentDetail() {
           <LearningProgressTab student={student} />
         </TabsContent>
       </Tabs>
+
+      <MarkPaidDialog
+        open={!!paymentToMark}
+        onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
+        payment={paymentToMark}
+        studentName={student?.name || "Student"}
+        onSuccess={load}
+      />
     </div>
   );
 }
