@@ -373,7 +373,7 @@ function StudentEditDialog({ student, onSaved }) {
   };
 
   return (
-    <DialogContent className="rounded-xl max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">Edit student</DialogTitle>
       </DialogHeader>

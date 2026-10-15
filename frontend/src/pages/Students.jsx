@@ -297,7 +297,7 @@ function StudentDialog({ onSaved, student, institutes = [] }) {
   };
 
   return (
-    <DialogContent className="rounded-xl max-w-lg">
+    <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">{student ? "Edit student" : "New student"}</DialogTitle>
       </DialogHeader>

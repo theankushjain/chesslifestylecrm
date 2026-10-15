@@ -594,7 +594,7 @@ function EnrollStudentModal({ open, onOpenChange, institute, onEnrolled }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl max-w-lg" data-testid="enroll-student-dialog">
+      <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto" data-testid="enroll-student-dialog">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">
             Enroll Student into {institute?.name}
@@ -853,7 +853,7 @@ function EditInstituteModal({ open, onOpenChange, institute, onSaved }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl max-w-lg">
+      <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">Edit Institute</DialogTitle>
         </DialogHeader>

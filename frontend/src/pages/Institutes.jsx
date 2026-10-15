@@ -433,7 +433,7 @@ function InstituteDialog({ open, onOpenChange, institute, onSaved }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl max-w-lg" data-testid="institute-dialog">
+      <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto" data-testid="institute-dialog">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">
             {institute ? "Edit Institute" : "New Institute"}
