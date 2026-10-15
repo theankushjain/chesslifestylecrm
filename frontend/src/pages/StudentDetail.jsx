@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy } from "lucide-react";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -100,8 +100,17 @@ export default function StudentDetail() {
             {student.name[0]}
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <div className="label-over !mb-0">{student.level}</div>
+              {student.institute_name && (
+                <Link
+                  to={`/institutes/${student.institute_id}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                >
+                  <Building2 className="w-3 h-3" />
+                  {student.institute_name}
+                </Link>
+              )}
               {Array.isArray(student.tags) && student.tags.map((t, i) => (
                 <span key={i} className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded">{t}</span>
               ))}
@@ -327,6 +336,11 @@ export default function StudentDetail() {
 const monthName = (m) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1];
 
 function StudentEditDialog({ student, onSaved }) {
+  const [institutes, setInstitutes] = useState([]);
+  useEffect(() => {
+    api.get("/institutes").then((res) => setInstitutes(res.data)).catch(() => {});
+  }, []);
+
   const [form, setForm] = useState({
     name: student.name, email: student.email || "", phone: student.phone || "",
     parent_name: student.parent_name || "", parent_phone: student.parent_phone || "",
@@ -337,7 +351,9 @@ function StudentEditDialog({ student, onSaved }) {
     grade: student.grade || "", school: student.school || "",
     father_occupation: student.father_occupation || "",
     mother_occupation: student.mother_occupation || "",
-    hobby: student.hobby || ""
+    hobby: student.hobby || "",
+    institute_id: student.institute_id || "",
+    institute_name: student.institute_name || "",
   });
   const [tagsStr, setTagsStr] = useState((Array.isArray(student.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
@@ -388,6 +404,32 @@ function StudentEditDialog({ student, onSaved }) {
             <Label className="text-xs uppercase tracking-widest">Parent phone</Label>
             <Input value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} className="rounded-xl" />
           </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest font-semibold">Institute / Campus</Label>
+          <Select
+            value={form.institute_id || "none"}
+            onValueChange={(v) => {
+              const inst = institutes.find((i) => i.id === v);
+              setForm({
+                ...form,
+                institute_id: v === "none" ? null : v,
+                institute_name: inst ? inst.name : "",
+              });
+            }}
+          >
+            <SelectTrigger className="rounded-xl mt-1">
+              <SelectValue placeholder="Direct / No Institute" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="none">Direct / No Institute</SelectItem>
+              {institutes.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.name} ({i.type})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

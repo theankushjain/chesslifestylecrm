@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare, Menu, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Target, IndianRupee, MessageSquare, LogOut, User, CalendarDays, TrendingUp, UserCog, CheckSquare, Menu, ClipboardList, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import NotificationBell from "./NotificationBell";
@@ -8,6 +8,7 @@ import NotificationBell from "./NotificationBell";
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin"] },
   { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin", "staff"] },
+  { to: "/institutes", label: "Institutes", icon: Building2, testid: "nav-institutes", roles: ["admin", "staff"] },
   { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
   { to: "/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance", roles: ["admin", "staff"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin"] },

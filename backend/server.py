@@ -136,6 +136,8 @@ class StudentIn(BaseModel):
     father_occupation: str = ""
     mother_occupation: str = ""
     hobby: str = ""
+    institute_id: Optional[str] = None
+    institute_name: Optional[str] = None
 
 class AccountCreate(BaseModel):
     email: str
@@ -160,6 +162,31 @@ class StudentUpdate(BaseModel):
     father_occupation: Optional[str] = None
     mother_occupation: Optional[str] = None
     hobby: Optional[str] = None
+    institute_id: Optional[str] = None
+    institute_name: Optional[str] = None
+
+class InstituteIn(BaseModel):
+    name: str
+    type: str = "School"  # School, Society, Academy, Club, Other
+    contact_person: str = ""
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    notes: str = ""
+    status: str = "active"
+
+class InstituteUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+class AssignStudentsIn(BaseModel):
+    student_ids: list[str]
 
 class StudentFormUpdate(BaseModel):
     name: Optional[str] = None
@@ -530,12 +557,15 @@ async def on_startup():
     await db.tasks.create_index("status")
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
     await db.batches.create_index("name")
+    await db.institutes.create_index("name")
+    await db.students.create_index("institute_id")
     await db.student_progress.create_index("student_id", unique=True)
     await db.push_subscriptions.create_index("user_id")
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
     await seed_batches()
+    await seed_institutes()
     asyncio.create_task(check_pending_tasks_and_notify())
     asyncio.create_task(check_completed_classes_and_notify())
 
@@ -908,18 +938,29 @@ async def update_my_profile(body: ProfileUpdate, user: dict = Depends(get_curren
 
 
 @api.get("/students")
-async def list_students(user: dict = Depends(get_current_user)):
+async def list_students(institute_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     if user["role"] == "student":
         sid = user.get("linked_student_id")
         if not sid: return []
         docs = await db.students.find({"_id": sid}).to_list(1)
     else:
-        docs = await db.students.find().sort("name", 1).to_list(1000)
+        q = {}
+        if institute_id:
+            if institute_id == "unassigned":
+                q["$or"] = [{"institute_id": None}, {"institute_id": ""}, {"institute_id": {"$exists": False}}]
+            else:
+                q["institute_id"] = institute_id
+        docs = await db.students.find(q).sort("name", 1).to_list(1000)
     return [clean(d) for d in docs]
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
-    doc = {"_id": str(uuid.uuid4()), **body.model_dump(),
+    data = body.model_dump()
+    if data.get("institute_id") and not data.get("institute_name"):
+        inst = await db.institutes.find_one({"_id": data["institute_id"]})
+        if inst:
+            data["institute_name"] = inst["name"]
+    doc = {"_id": str(uuid.uuid4()), **data,
            "joined_date": iso(now_utc()), "created_at": iso(now_utc())}
     await db.students.insert_one(doc)
     return clean(doc)
@@ -936,6 +977,13 @@ async def get_student(sid: str, user: dict = Depends(get_current_user)):
 @api.patch("/students/{sid}")
 async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "institute_id" in updates:
+        if updates["institute_id"]:
+            inst = await db.institutes.find_one({"_id": updates["institute_id"]})
+            updates["institute_name"] = inst["name"] if inst else ""
+        else:
+            updates["institute_id"] = None
+            updates["institute_name"] = ""
     if updates:
         await db.students.update_one({"_id": sid}, {"$set": updates})
     doc = await db.students.find_one({"_id": sid})
@@ -1511,6 +1559,151 @@ async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
                 })
     out.sort(key=lambda x: x["time"])
     return out
+
+
+async def seed_institutes():
+    if await db.institutes.count_documents({}) > 0:
+        return
+    students = await db.students.find().to_list(100)
+    
+    inst1_id = str(uuid.uuid4())
+    inst2_id = str(uuid.uuid4())
+    
+    inst1 = {
+        "_id": inst1_id,
+        "name": "Delhi Public School (DPS)",
+        "type": "School",
+        "contact_person": "Mrs. Sunita Kapoor (Activity Coordinator)",
+        "phone": "+91-98765-43210",
+        "email": "sports@dps-school.org",
+        "address": "DPS Campus, Sector 4",
+        "notes": "After-school chess club batches running every Tuesday and Thursday.",
+        "status": "active",
+        "created_at": iso(now_utc()),
+        "updated_at": iso(now_utc())
+    }
+    inst2 = {
+        "_id": inst2_id,
+        "name": "Green Glen Residential Society",
+        "type": "Society",
+        "contact_person": "Rajesh Mehta (Secretary)",
+        "phone": "+91-98111-22334",
+        "email": "rwa@greenglen.org",
+        "address": "Green Glen Layout Clubhouse",
+        "notes": "Clubhouse weekend batches for society kids.",
+        "status": "active",
+        "created_at": iso(now_utc()),
+        "updated_at": iso(now_utc())
+    }
+    await db.institutes.insert_many([inst1, inst2])
+    
+    if len(students) >= 2:
+        await db.students.update_many(
+            {"_id": {"$in": [s["_id"] for s in students[:2]]}},
+            {"$set": {"institute_id": inst1_id, "institute_name": inst1["name"]}}
+        )
+    if len(students) >= 4:
+        await db.students.update_many(
+            {"_id": {"$in": [s["_id"] for s in students[2:4]]}},
+            {"$set": {"institute_id": inst2_id, "institute_name": inst2["name"]}}
+        )
+
+
+@api.get("/institutes")
+async def list_institutes(user: dict = Depends(require_roles("admin", "staff"))):
+    institutes = await db.institutes.find().sort("name", 1).to_list(500)
+    counts = await db.students.aggregate([
+        {"$match": {"institute_id": {"$exists": True, "$ne": None, "$ne": ""}}},
+        {"$group": {"_id": "$institute_id", "count": {"$sum": 1}}}
+    ]).to_list(500)
+    count_map = {c["_id"]: c["count"] for c in counts}
+    
+    res = []
+    for inst in institutes:
+        doc = clean(inst)
+        doc["student_count"] = count_map.get(doc["id"], 0)
+        res.append(doc)
+    return res
+
+@api.post("/institutes")
+async def create_institute(body: InstituteIn, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = {
+        "_id": str(uuid.uuid4()),
+        **body.model_dump(),
+        "created_at": iso(now_utc()),
+        "updated_at": iso(now_utc())
+    }
+    await db.institutes.insert_one(doc)
+    out = clean(doc)
+    out["student_count"] = 0
+    return out
+
+@api.get("/institutes/{iid}")
+async def get_institute(iid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    doc = await db.institutes.find_one({"_id": iid})
+    if not doc:
+        raise HTTPException(404, "Institute not found")
+    student_count = await db.students.count_documents({"institute_id": iid})
+    res = clean(doc)
+    res["student_count"] = student_count
+    return res
+
+@api.patch("/institutes/{iid}")
+async def update_institute(iid: str, body: InstituteUpdate, user: dict = Depends(require_roles("admin", "staff"))):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        updates["updated_at"] = iso(now_utc())
+        await db.institutes.update_one({"_id": iid}, {"$set": updates})
+        if "name" in updates:
+            await db.students.update_many(
+                {"institute_id": iid},
+                {"$set": {"institute_name": updates["name"]}}
+            )
+    doc = await db.institutes.find_one({"_id": iid})
+    if not doc:
+        raise HTTPException(404, "Institute not found")
+    student_count = await db.students.count_documents({"institute_id": iid})
+    res = clean(doc)
+    res["student_count"] = student_count
+    return res
+
+@api.delete("/institutes/{iid}")
+async def delete_institute(iid: str, user: dict = Depends(require_roles("admin"))):
+    await db.students.update_many(
+        {"institute_id": iid},
+        {"$set": {"institute_id": None, "institute_name": None}}
+    )
+    await db.institutes.delete_one({"_id": iid})
+    return {"ok": True}
+
+@api.get("/institutes/{iid}/students")
+async def get_institute_students(iid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    inst = await db.institutes.find_one({"_id": iid})
+    if not inst:
+        raise HTTPException(404, "Institute not found")
+    students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
+    return [clean(s) for s in students]
+
+@api.post("/institutes/{iid}/students")
+async def assign_students_to_institute(iid: str, body: AssignStudentsIn, user: dict = Depends(require_roles("admin", "staff"))):
+    inst = await db.institutes.find_one({"_id": iid})
+    if not inst:
+        raise HTTPException(404, "Institute not found")
+    if body.student_ids:
+        await db.students.update_many(
+            {"_id": {"$in": body.student_ids}},
+            {"$set": {"institute_id": iid, "institute_name": inst["name"]}}
+        )
+    return {"ok": True, "assigned_count": len(body.student_ids)}
+
+@api.delete("/institutes/{iid}/students/{sid}")
+async def unassign_student_from_institute(iid: str, sid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    await db.students.update_one(
+        {"_id": sid, "institute_id": iid},
+        {"$set": {"institute_id": None, "institute_name": None}}
+    )
+    return {"ok": True}
+
 
 async def get_crm_context():
     students = await db.students.find().to_list(1000)

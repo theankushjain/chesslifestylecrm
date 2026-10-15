@@ -7,6 +7,8 @@ import Layout from "@/components/crm/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
 import StudentDetail from "@/pages/StudentDetail";
+import Institutes from "@/pages/Institutes";
+import InstituteDetail from "@/pages/InstituteDetail";
 import Leads from "@/pages/Leads";
 import LeadDetail from "@/pages/LeadDetail";
 import Payments from "@/pages/Payments";
@@ -58,6 +60,8 @@ function App() {
               <Route index element={<RoleHome />} />
               <Route path="students" element={<Protected roles={["admin", "staff"]}><Students /></Protected>} />
               <Route path="students/:id" element={<Protected><StudentDetail /></Protected>} />
+              <Route path="institutes" element={<Protected roles={["admin", "staff"]}><Institutes /></Protected>} />
+              <Route path="institutes/:id" element={<Protected roles={["admin", "staff"]}><InstituteDetail /></Protected>} />
               <Route path="leads" element={<Protected roles={["admin"]}><Leads /></Protected>} />
               <Route path="leads/:id" element={<Protected roles={["admin"]}><LeadDetail /></Protected>} />
               <Route path="classes" element={<Protected roles={["admin","staff"]}><Classes /></Protected>} />

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer } from "lucide-react";
+import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -87,22 +87,41 @@ function MonthlyProgressDialog() {
 export default function Students() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
+  const [institutes, setInstitutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [instituteFilter, setInstituteFilter] = useState("all");
   const [open, setOpen] = useState(false);
 
   const load = async () => {
-    const { data } = await api.get("/students");
-    setStudents(data);
-    setLoading(false);
+    try {
+      const [sRes, iRes] = await Promise.all([
+        api.get("/students"),
+        api.get("/institutes"),
+      ]);
+      setStudents(sRes.data);
+      setInstitutes(iRes.data);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = students.filter((s) =>
-    s.name.toLowerCase().includes(query.toLowerCase()) ||
-    (s.phone || "").includes(query) ||
-    (s.parent_name || "").toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = students.filter((s) => {
+    const matchesQuery =
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      (s.phone || "").includes(query) ||
+      (s.parent_name || "").toLowerCase().includes(query.toLowerCase());
+    const matchesInstitute =
+      instituteFilter === "all"
+        ? true
+        : instituteFilter === "unassigned"
+        ? !s.institute_id
+        : s.institute_id === instituteFilter;
+    return matchesQuery && matchesInstitute;
+  });
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
@@ -116,6 +135,7 @@ export default function Students() {
             <Button variant="outline" onClick={() => {
               const exportData = students.map(s => ({
                 Name: s.name,
+                Institute: s.institute_name || "Direct Enrollment",
                 Phone: s.phone || "",
                 "Parent Name": s.parent_name || "",
                 "Parent Phone": s.parent_phone || "",
@@ -141,21 +161,40 @@ export default function Students() {
           </Button>
           {user?.role === "admin" && <MonthlyProgressDialog />}
           <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="add-student-btn" className="rounded-xl h-10">
-              <Plus className="w-4 h-4 mr-1.5" /> Add
-            </Button>
-          </DialogTrigger>
-          <StudentDialog onSaved={() => { setOpen(false); load(); }} />
-        </Dialog>
+            <DialogTrigger asChild>
+              <Button data-testid="add-student-btn" className="rounded-xl h-10">
+                <Plus className="w-4 h-4 mr-1.5" /> Add
+              </Button>
+            </DialogTrigger>
+            <StudentDialog onSaved={() => { setOpen(false); load(); }} institutes={institutes} />
+          </Dialog>
         </div>
       </div>
 
-      <div className="mb-4 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search by name, phone or parent..." data-testid="student-search"
-          value={query} onChange={(e) => setQuery(e.target.value)}
-          className="pl-10 rounded-xl bg-white" />
+      {/* Search and Institute Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search by name, phone or parent..." data-testid="student-search"
+            value={query} onChange={(e) => setQuery(e.target.value)}
+            className="pl-10 rounded-xl bg-white" />
+        </div>
+
+        <Select value={instituteFilter} onValueChange={setInstituteFilter}>
+          <SelectTrigger className="w-full sm:w-[220px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
+            <Building2 className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
+            <SelectValue placeholder="All Institutes" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All Institutes ({students.length})</SelectItem>
+            <SelectItem value="unassigned">Direct / No Institute ({students.filter(s => !s.institute_id).length})</SelectItem>
+            {institutes.map((inst) => (
+              <SelectItem key={inst.id} value={inst.id}>
+                {inst.name} ({students.filter(s => s.institute_id === inst.id).length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
@@ -172,6 +211,12 @@ export default function Students() {
                 <div className="min-w-0">
                   <div className="font-medium flex items-center gap-2 truncate">
                     {s.name}
+                    {s.institute_name && (
+                      <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-medium rounded-full flex items-center gap-1 shrink-0">
+                        <Building2 className="w-2.5 h-2.5" />
+                        {s.institute_name}
+                      </span>
+                    )}
                     {Array.isArray(s.tags) && s.tags.length > 0 && (
                       <span className="flex items-center gap-1">
                         {s.tags.slice(0, 2).map((t, i) => (
@@ -183,7 +228,7 @@ export default function Students() {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
                     {s.level} · {s.phone || "no phone"}
                   </div>
                   {s.notes && (
@@ -223,10 +268,11 @@ export default function Students() {
   );
 }
 
-function StudentDialog({ onSaved, student }) {
+function StudentDialog({ onSaved, student, institutes = [] }) {
   const [form, setForm] = useState(student || {
     name: "", phone: "", parent_name: "", parent_phone: "",
-    level: "Beginner", monthly_fee: 2500, fee_type: "monthly", fee_amount: 2500, notes: "", status: "active", dob: "", tags: []
+    level: "Beginner", monthly_fee: 2500, fee_type: "monthly", fee_amount: 2500, notes: "", status: "active", dob: "", tags: [],
+    institute_id: "", institute_name: ""
   });
   const [tagsStr, setTagsStr] = useState((Array.isArray(student?.tags) ? student.tags : []).join(", "));
   const [saving, setSaving] = useState(false);
@@ -298,6 +344,32 @@ function StudentDialog({ onSaved, student }) {
             <Label className="text-xs uppercase tracking-widest">Fee Amount (₹)</Label>
             <Input type="number" data-testid="student-form-fee" value={form.fee_amount} onChange={(e) => setForm({ ...form, fee_amount: Number(e.target.value) })} className="rounded-xl" />
           </div>
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-widest font-semibold">Institute / Campus</Label>
+          <Select
+            value={form.institute_id || "none"}
+            onValueChange={(v) => {
+              const inst = institutes.find((i) => i.id === v);
+              setForm({
+                ...form,
+                institute_id: v === "none" ? null : v,
+                institute_name: inst ? inst.name : "",
+              });
+            }}
+          >
+            <SelectTrigger className="rounded-xl mt-1">
+              <SelectValue placeholder="Direct / No Institute" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="none">Direct / No Institute</SelectItem>
+              {institutes.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.name} ({i.type})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label className="text-xs uppercase tracking-widest">Date of birth</Label>
