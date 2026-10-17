@@ -237,12 +237,14 @@ class PaymentIn(BaseModel):
     status: str = "unpaid"
     method: str = ""
     paid_date: Optional[str] = None
+    notes: Optional[str] = ""
 
 class PaymentUpdate(BaseModel):
     status: Optional[str] = None
     method: Optional[str] = None
     paid_date: Optional[str] = None
     amount: Optional[float] = None
+    notes: Optional[str] = None
 
 class ChatIn(BaseModel):
     message: str
@@ -1091,11 +1093,71 @@ async def list_payments(student_id: Optional[str] = None, user: dict = Depends(g
 
 @api.post("/payments")
 async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("admin", "staff"))):
+    if body.amount < 0:
+        raise HTTPException(400, "Payment amount cannot be negative")
+    if body.month < 1 or body.month > 12:
+        raise HTTPException(400, "Invalid month")
+
     existing = await db.payments.find_one({"student_id": body.student_id, "year": body.year, "month": body.month})
     if existing:
-        raise HTTPException(400, "Payment record already exists for this month")
-    doc = {"_id": str(uuid.uuid4()), **body.model_dump(), "created_at": iso(now_utc())}
+        if existing.get("status") == "unpaid":
+            updates = {
+                "amount": body.amount,
+                "status": body.status,
+                "method": body.method,
+                "paid_date": body.paid_date or (iso(now_utc()) if body.status == "paid" else None),
+                "notes": body.notes if body.notes is not None else existing.get("notes", ""),
+                "updated_at": iso(now_utc())
+            }
+            await db.payments.update_one({"_id": existing["_id"]}, {"$set": updates})
+            doc = await db.payments.find_one({"_id": existing["_id"]})
+            
+            if body.status == "paid":
+                student = await db.students.find_one({"_id": doc["student_id"]})
+                if student and student.get("status") == "on hold":
+                    await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
+                student_name = student["name"] if student else "Unknown Student"
+                month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
+                t_doc = {
+                    "_id": str(uuid.uuid4()),
+                    "type": "income",
+                    "category": "Fee Income",
+                    "amount": float(doc["amount"]),
+                    "description": f"Fees from {student_name} - {month_name} {doc['year']}" + (f" ({body.notes})" if body.notes else ""),
+                    "date": (body.paid_date or iso(now_utc()))[:10],
+                    "created_at": iso(now_utc())
+                }
+                await db.transactions.insert_one(t_doc)
+            return clean(doc)
+        else:
+            raise HTTPException(400, f"Fee payment of ₹{int(existing.get('amount', 0))} is already recorded as paid for this student in {body.month}/{body.year}")
+
+    paid_date = body.paid_date or (iso(now_utc()) if body.status == "paid" else None)
+    doc = {
+        "_id": str(uuid.uuid4()),
+        **body.model_dump(),
+        "paid_date": paid_date,
+        "created_at": iso(now_utc())
+    }
     await db.payments.insert_one(doc)
+
+    if doc.get("status") == "paid":
+        student = await db.students.find_one({"_id": doc["student_id"]})
+        if student and student.get("status") == "on hold":
+            await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
+        student_name = student["name"] if student else "Unknown Student"
+        month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
+        t_doc = {
+            "_id": str(uuid.uuid4()),
+            "type": "income",
+            "category": "Fee Income",
+            "amount": float(doc["amount"]),
+            "description": f"Fees from {student_name} - {month_name} {doc['year']}" + (f" ({body.notes})" if body.notes else ""),
+            "date": (paid_date or iso(now_utc()))[:10],
+            "created_at": iso(now_utc())
+        }
+        await db.transactions.insert_one(t_doc)
+
     return clean(doc)
 
 @api.post("/payments/generate")

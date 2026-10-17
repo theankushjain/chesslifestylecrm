@@ -2,26 +2,30 @@ import { useEffect, useState } from "react";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, IndianRupee, Trash2, Wand2, FileText } from "lucide-react";
+import { CheckCircle2, IndianRupee, Trash2, Wand2, FileText, Plus } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { generatePDF } from "@/lib/pdfExport";
 import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
+import { AddFeeDialog } from "@/components/crm/AddFeeDialog";
 
 export default function Payments() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState({});
+  const [studentsList, setStudentsList] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [paymentToMark, setPaymentToMark] = useState(null);
+  const [addFeeOpen, setAddFeeOpen] = useState(false);
 
   const load = async () => {
     const [p, s] = await Promise.all([api.get("/payments"), api.get("/students")]);
     setPayments(p.data);
+    setStudentsList(s.data);
     setStudents(Object.fromEntries(s.data.map((x) => [x.id, x])));
     setLoading(false);
   };
@@ -104,7 +108,10 @@ export default function Payments() {
               <FileText className="w-4 h-4 mr-1.5" /> PDF
             </Button>
           )}
-          <Button onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-xl h-10">
+          <Button onClick={() => setAddFeeOpen(true)} data-testid="add-fee-btn" className="rounded-xl h-10 bg-primary text-primary-foreground">
+            <Plus className="w-4 h-4 mr-1.5" /> Add Fee
+          </Button>
+          <Button variant="outline" onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-xl h-10">
             <Wand2 className="w-4 h-4 mr-1.5" /> {generating ? "Generating..." : "Generate Month Fees"}
           </Button>
         </div>
@@ -143,9 +150,17 @@ export default function Payments() {
             return (
               <div key={p.id} className="flex items-center gap-3 p-4">
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium">{s?.name || "?"}</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <span>{s?.name || "?"}</span>
+                    {s?.institute_name && (
+                      <span className="text-[10px] font-normal uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {s.institute_name}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {monthName(p.month)} {p.year} · <span className="font-mono">₹{p.amount}</span>
+                    {p.notes && <span className="ml-1.5 italic text-slate-500">· {p.notes}</span>}
                   </div>
                 </div>
                 {p.status === "paid" ? (
@@ -185,6 +200,14 @@ export default function Payments() {
         onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
         payment={paymentToMark}
         studentName={students[paymentToMark?.student_id]?.name || "Student"}
+        onSuccess={load}
+      />
+
+      <AddFeeDialog
+        open={addFeeOpen}
+        onOpenChange={setAddFeeOpen}
+        students={studentsList}
+        existingPayments={payments}
         onSuccess={load}
       />
     </div>

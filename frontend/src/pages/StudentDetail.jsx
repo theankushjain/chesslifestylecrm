@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy, Building2 } from "lucide-react";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy, Building2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -16,6 +16,7 @@ import { openWhatsapp, studentReminderMessage, studentBirthdayMessage, studentPo
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LearningProgressTab from "./LearningProgressTab";
 import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
+import { AddFeeDialog } from "@/components/crm/AddFeeDialog";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -36,6 +37,7 @@ export default function StudentDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [paymentToMark, setPaymentToMark] = useState(null);
+  const [addFeeOpen, setAddFeeOpen] = useState(false);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
   const canEdit = user.role === "admin" || user.role === "staff";
   const canDelete = user.role === "admin";
@@ -263,7 +265,14 @@ export default function StudentDetail() {
 
           {/* Payments */}
           <div>
-            <div className="label-over mb-2">Fees</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="label-over !mb-0">Fees</div>
+              {canEdit && (
+                <Button size="sm" variant="outline" onClick={() => setAddFeeOpen(true)} className="rounded-xl h-7 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Fee
+                </Button>
+              )}
+            </div>
             <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
               {payments.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-4">
@@ -327,6 +336,15 @@ export default function StudentDetail() {
         onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
         payment={paymentToMark}
         studentName={student?.name || "Student"}
+        onSuccess={load}
+      />
+
+      <AddFeeDialog
+        open={addFeeOpen}
+        onOpenChange={setAddFeeOpen}
+        students={student ? [student] : []}
+        existingPayments={payments}
+        initialStudentId={student?.id}
         onSuccess={load}
       />
     </div>
