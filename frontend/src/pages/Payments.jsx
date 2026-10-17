@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { generatePDF } from "@/lib/pdfExport";
 import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
 import { AddFeeDialog } from "@/components/crm/AddFeeDialog";
+import { GenerateFeesDialog } from "@/components/crm/GenerateFeesDialog";
 
 export default function Payments() {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ export default function Payments() {
   const [studentsList, setStudentsList] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [generateFeesOpen, setGenerateFeesOpen] = useState(false);
   const [paymentToMark, setPaymentToMark] = useState(null);
   const [addFeeOpen, setAddFeeOpen] = useState(false);
 
@@ -39,15 +40,6 @@ export default function Payments() {
     return true;
   });
 
-  const generateFees = async () => {
-    setGenerating(true);
-    try {
-      const res = await api.post("/payments/generate");
-      toast.success(`Generated ${res.data.generated} fee records for this month`);
-      load();
-    } catch (e) { toast.error(formatApiError(e)); }
-    finally { setGenerating(false); }
-  };
 
   const deletePayment = async (pid) => {
     if (!confirm("Are you sure you want to delete this payment record?")) return;
@@ -111,8 +103,8 @@ export default function Payments() {
           <Button onClick={() => setAddFeeOpen(true)} data-testid="add-fee-btn" className="rounded-xl h-10 bg-primary text-primary-foreground">
             <Plus className="w-4 h-4 mr-1.5" /> Add Fee
           </Button>
-          <Button variant="outline" onClick={generateFees} disabled={generating} data-testid="generate-fees-btn" className="rounded-xl h-10">
-            <Wand2 className="w-4 h-4 mr-1.5" /> {generating ? "Generating..." : "Generate Month Fees"}
+          <Button variant="outline" onClick={() => setGenerateFeesOpen(true)} data-testid="generate-fees-btn" className="rounded-xl h-10">
+            <Wand2 className="w-4 h-4 mr-1.5" /> Generate Month Fees
           </Button>
         </div>
       </div>
@@ -208,6 +200,13 @@ export default function Payments() {
         onOpenChange={setAddFeeOpen}
         students={studentsList}
         existingPayments={payments}
+        onSuccess={load}
+      />
+
+      <GenerateFeesDialog
+        open={generateFeesOpen}
+        onOpenChange={setGenerateFeesOpen}
+        students={studentsList}
         onSuccess={load}
       />
     </div>

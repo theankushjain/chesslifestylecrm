@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta, date
 from typing import List, Optional, Dict, Any
 from pywebpush import webpush, WebPushException
 
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Body
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr
@@ -245,6 +245,11 @@ class PaymentUpdate(BaseModel):
     paid_date: Optional[str] = None
     amount: Optional[float] = None
     notes: Optional[str] = None
+
+class GeneratePaymentsIn(BaseModel):
+    institute_id: Optional[str] = None
+    month: Optional[int] = None
+    year: Optional[int] = None
 
 class ChatIn(BaseModel):
     message: str
@@ -1161,13 +1166,25 @@ async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("ad
     return clean(doc)
 
 @api.post("/payments/generate")
-async def generate_payments(user: dict = Depends(require_roles("admin", "staff"))):
+async def generate_payments(body: Optional[GeneratePaymentsIn] = Body(None), user: dict = Depends(require_roles("admin", "staff"))):
     now = datetime.now()
-    cur_year = now.year
-    cur_month = now.month
+    cur_year = (body.year if body and body.year else None) or now.year
+    cur_month = (body.month if body and body.month else None) or now.month
     
-    students = await db.students.find({"status": "active"}).to_list(None)
+    q = {"status": "active"}
+    inst_name = "All Institutions"
+    if body and body.institute_id:
+        if body.institute_id == "unassigned":
+            q["$or"] = [{"institute_id": None}, {"institute_id": ""}, {"institute_id": {"$exists": False}}]
+            inst_name = "Direct Enrollment"
+        elif body.institute_id != "all":
+            q["institute_id"] = body.institute_id
+            inst = await db.institutes.find_one({"_id": body.institute_id})
+            inst_name = inst["name"] if inst else "Selected Institution"
+
+    students = await db.students.find(q).to_list(None)
     generated = 0
+    skipped_existing = 0
     for s in students:
         existing = await db.payments.find_one({"student_id": s["_id"], "year": cur_year, "month": cur_month})
         if not existing:
@@ -1205,8 +1222,17 @@ async def generate_payments(user: dict = Depends(require_roles("admin", "staff")
                 }
                 await db.payments.insert_one(doc)
                 generated += 1
+        else:
+            skipped_existing += 1
             
-    return {"generated": generated}
+    return {
+        "generated": generated,
+        "skipped_existing": skipped_existing,
+        "total_students": len(students),
+        "institute_name": inst_name,
+        "month": cur_month,
+        "year": cur_year
+    }
 
 
 @api.patch("/payments/{pid}")
