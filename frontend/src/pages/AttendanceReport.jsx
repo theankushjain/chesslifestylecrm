@@ -2,7 +2,24 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  Building2,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { generatePDF } from "@/lib/pdfExport";
@@ -16,7 +33,10 @@ const STATUS_ICONS = {
 export default function AttendanceReport() {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
+  const [institutes, setInstitutes] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [instituteFilter, setInstituteFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -26,17 +46,20 @@ export default function AttendanceReport() {
   const load = async () => {
     setLoading(true);
     try {
-      // Get all active students
-      const { data: stdData } = await api.get("/students");
-      const activeStudents = stdData.filter((s) => s.status === "active");
-      setStudents(activeStudents);
-
       // Determine start and end date for the selected month
       const startDate = new Date(year, month, 1).toLocaleDateString("en-CA"); // YYYY-MM-DD
       const endDate = new Date(year, month + 1, 0).toLocaleDateString("en-CA");
 
-      const { data: attData } = await api.get(`/attendance?start_date=${startDate}&end_date=${endDate}`);
-      setAttendance(attData);
+      const [stdRes, instRes, attRes] = await Promise.all([
+        api.get("/students"),
+        api.get("/institutes"),
+        api.get(`/attendance?start_date=${startDate}&end_date=${endDate}`),
+      ]);
+
+      const activeStudents = (stdRes.data || []).filter((s) => s.status === "active");
+      setStudents(activeStudents);
+      setInstitutes(instRes.data || []);
+      setAttendance(attRes.data || []);
     } catch (e) {
       toast.error(formatApiError(e));
     } finally {
@@ -46,6 +69,7 @@ export default function AttendanceReport() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
 
   const prevMonth = () => {
@@ -71,13 +95,43 @@ export default function AttendanceReport() {
     return map;
   }, [attendance]);
 
+  // Filter students based on selected institution and search query
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      const matchesInstitute =
+        instituteFilter === "all"
+          ? true
+          : instituteFilter === "unassigned"
+          ? !s.institute_id
+          : s.institute_id === instituteFilter;
+
+      const q = searchQuery.toLowerCase().trim();
+      const matchesQuery = q
+        ? s.name?.toLowerCase().includes(q) ||
+          s.phone?.includes(q) ||
+          s.parent_name?.toLowerCase().includes(q) ||
+          s.institute_name?.toLowerCase().includes(q)
+        : true;
+
+      return matchesInstitute && matchesQuery;
+    });
+  }, [students, instituteFilter, searchQuery]);
+
   const toggleAttendance = async (studentId, dateStr, currentStatus) => {
     // Determine next status: empty -> present -> absent -> late -> empty...
-    const nextStatus = !currentStatus ? "present" : currentStatus === "present" ? "absent" : currentStatus === "absent" ? "late" : null;
-    
+    const nextStatus = !currentStatus
+      ? "present"
+      : currentStatus === "present"
+      ? "absent"
+      : currentStatus === "absent"
+      ? "late"
+      : null;
+
     // Optimistic UI update
     setAttendance((prev) => {
-      const existingIdx = prev.findIndex(a => a.student_id === studentId && a.date === dateStr);
+      const existingIdx = prev.findIndex(
+        (a) => a.student_id === studentId && a.date === dateStr
+      );
       if (nextStatus === null) {
         if (existingIdx >= 0) {
           const nextAtt = [...prev];
@@ -91,7 +145,10 @@ export default function AttendanceReport() {
         nextAtt[existingIdx] = { ...nextAtt[existingIdx], status: nextStatus };
         return nextAtt;
       } else {
-        return [...prev, { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" }];
+        return [
+          ...prev,
+          { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" },
+        ];
       }
     });
 
@@ -99,52 +156,78 @@ export default function AttendanceReport() {
       if (nextStatus === null) {
         await api.delete(`/attendance?student_id=${studentId}&date=${dateStr}`);
       } else {
-        await api.post("/attendance", { student_id: studentId, date: dateStr, status: nextStatus, topic: "Class" });
+        await api.post("/attendance", {
+          student_id: studentId,
+          date: dateStr,
+          status: nextStatus,
+          topic: "Class",
+        });
       }
     } catch (e) {
       toast.error(formatApiError(e));
       // Revert on error
-      load(); 
+      load();
     }
   };
 
   const handleExportPDF = () => {
-    const head = ["Student Name", "Total Absents (A)", "Total Presents (P)"];
-    
-    // Calculate totals for all students
-    const summaryData = students.map((s) => {
+    const head = ["Student Name", "Campus", "Total Absents (A)", "Total Presents (P)"];
+
+    // Calculate totals for filtered students
+    const summaryData = filteredStudents.map((s) => {
       const stdAtt = attendanceMap[s.id] || {};
       let presentCount = 0;
       let absentCount = 0;
-      
+
       for (const day of daysArray) {
         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         const status = stdAtt[dateStr];
         if (status === "present" || status === "late") presentCount++;
         else if (status === "absent") absentCount++;
       }
-      
-      return { name: s.name, presentCount, absentCount };
+
+      return {
+        name: s.name,
+        campus: s.institute_name || "Direct Enrollment",
+        presentCount,
+        absentCount,
+      };
     });
 
     // Sort by max absents
     summaryData.sort((a, b) => b.absentCount - a.absentCount);
-    
-    const body = summaryData.map(s => [s.name, String(s.absentCount), String(s.presentCount)]);
+
+    const body = summaryData.map((s) => [
+      s.name,
+      s.campus,
+      String(s.absentCount),
+      String(s.presentCount),
+    ]);
     const totalAbsents = summaryData.reduce((acc, s) => acc + s.absentCount, 0);
 
-    const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const monthName = currentDate.toLocaleString("default", {
+      month: "long",
+      year: "numeric",
+    });
+    const selectedInstName =
+      instituteFilter === "all"
+        ? "All Institutions"
+        : instituteFilter === "unassigned"
+        ? "Direct Enrollment"
+        : institutes.find((i) => i.id === instituteFilter)?.name || "Selected Institution";
+
     generatePDF({
       title: `Monthly Attendance Summary - ${monthName}`,
-      filename: `attendance_summary_${monthName.replace(" ", "_")}.pdf`,
+      filename: `attendance_summary_${selectedInstName.replace(/\s+/g, "_")}_${monthName.replace(/\s+/g, "_")}.pdf`,
       summary: [
-        `Total Enrolled Students: ${students.length}`,
+        `Institution: ${selectedInstName}`,
+        `Total Students in Scope: ${filteredStudents.length}`,
         `Total Absences Recorded: ${totalAbsents}`,
-        `Below is the list of students prioritized by maximum absents.`
+        `Below is the list of students prioritized by maximum absents.`,
       ],
       head,
       body,
-      orientation: "portrait"
+      orientation: "portrait",
     });
   };
 
@@ -155,39 +238,82 @@ export default function AttendanceReport() {
           <div className="label-over">Reports</div>
           <h1 className="text-4xl font-serif">Attendance</h1>
         </div>
-        
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-4 flex-wrap">
           {user?.role === "admin" && (
             <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
               <FileText className="w-4 h-4 mr-1.5" /> PDF
             </Button>
           )}
           <div className="flex items-center gap-4 bg-white border border-border/40 shadow-sm rounded-xl p-1">
-          <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-xl">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="font-medium text-sm w-32 text-center uppercase tracking-widest">
-            {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </div>
-          <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-xl">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-xl">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="font-medium text-sm w-32 text-center uppercase tracking-widest">
+              {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
+            </div>
+            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-xl">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
 
+      {/* Filter and Institution Selection Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search student by name, phone or campus..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-xl bg-white shadow-sm border-border/60 text-sm h-10"
+          />
+        </div>
+
+        <Select value={instituteFilter} onValueChange={setInstituteFilter}>
+          <SelectTrigger
+            data-testid="attendance-institution-select"
+            className="w-full sm:w-[260px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10 font-medium"
+          >
+            <Building2 className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
+            <SelectValue placeholder="All Institutions" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl max-h-72">
+            <SelectItem value="all">
+              All Institutions ({students.length})
+            </SelectItem>
+            <SelectItem value="unassigned">
+              Direct Enrollment ({students.filter((s) => !s.institute_id).length})
+            </SelectItem>
+            {institutes.length > 0 && <div className="border-t border-border/40 my-1" />}
+            {institutes.map((inst) => {
+              const count = students.filter((s) => s.institute_id === inst.id).length;
+              return (
+                <SelectItem key={inst.id} value={inst.id}>
+                  {inst.name} ({count})
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
       {loading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Loading attendance...</div>
       ) : (
         <div className="bg-white border border-border/40 shadow-sm rounded-xl overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-secondary/50 border-b border-border/60">
               <tr>
                 <th className="px-4 py-3 font-medium uppercase tracking-widest text-xs sticky left-0 bg-secondary z-10 border-r border-border/60">
-                  Student Name
+                  Student Name ({filteredStudents.length})
                 </th>
                 {daysArray.map((day) => (
-                  <th key={day} className="px-2 py-3 font-medium text-center text-xs text-muted-foreground border-r border-border/60 last:border-r-0 min-w-[32px]">
+                  <th
+                    key={day}
+                    className="px-2 py-3 font-medium text-center text-xs text-muted-foreground border-r border-border/60 last:border-r-0 min-w-[32px]"
+                  >
                     {day}
                   </th>
                 ))}
@@ -197,7 +323,7 @@ export default function AttendanceReport() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {students.map((s) => {
+              {filteredStudents.map((s) => {
                 const stdAtt = attendanceMap[s.id] || {};
                 let presentCount = 0;
                 let absentCount = 0;
@@ -205,30 +331,43 @@ export default function AttendanceReport() {
                 return (
                   <tr key={s.id} className="hover:bg-secondary/20">
                     <td className="px-4 py-3 sticky left-0 bg-white border-r border-border/60 z-10 shadow-[1px_0_0_rgba(0,0,0,0.05)]">
-                      <Link to={`/students/${s.id}`} className="font-medium hover:underline">
-                        {s.name}
+                      <Link
+                        to={`/students/${s.id}`}
+                        className="font-medium hover:underline flex items-center gap-2"
+                      >
+                        <span>{s.name}</span>
+                        {s.institute_name && instituteFilter === "all" && (
+                          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            {s.institute_name}
+                          </span>
+                        )}
                       </Link>
                     </td>
                     {daysArray.map((day) => {
-                      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+                        day
+                      ).padStart(2, "0")}`;
                       const status = stdAtt[dateStr];
-                      
+
                       if (status === "present") presentCount++;
                       if (status === "absent") absentCount++;
-                      if (status === "late") presentCount++; // Usually late counts as present
+                      if (status === "late") presentCount++;
 
                       const Icon = STATUS_ICONS[status]?.icon;
                       const color = STATUS_ICONS[status]?.color;
 
                       return (
-                        <td 
-                          key={day} 
+                        <td
+                          key={day}
                           className="px-2 py-2 text-center border-r border-border/60 last:border-r-0 cursor-pointer hover:bg-secondary/60 transition-colors"
                           onClick={() => toggleAttendance(s.id, dateStr, status)}
                           title="Click to toggle attendance"
                         >
                           {Icon ? (
-                            <Icon className={`w-3.5 h-3.5 mx-auto ${color}`} title={`${status} on ${dateStr}`} />
+                            <Icon
+                              className={`w-3.5 h-3.5 mx-auto ${color}`}
+                              title={`${status} on ${dateStr}`}
+                            />
                           ) : (
                             <span className="text-muted-foreground/30">-</span>
                           )}
@@ -237,17 +376,27 @@ export default function AttendanceReport() {
                     })}
                     <td className="px-4 py-2 border-l border-border/60 text-center">
                       <div className="flex flex-col items-center justify-center text-xs">
-                        <span className="text-success font-medium" title="Present (including late)">{presentCount} P</span>
-                        <span className="text-destructive font-medium" title="Absent">{absentCount} A</span>
+                        <span
+                          className="text-success font-medium"
+                          title="Present (including late)"
+                        >
+                          {presentCount} P
+                        </span>
+                        <span className="text-destructive font-medium" title="Absent">
+                          {absentCount} A
+                        </span>
                       </div>
                     </td>
                   </tr>
                 );
               })}
-              {students.length === 0 && (
+              {filteredStudents.length === 0 && (
                 <tr>
-                  <td colSpan={daysArray.length + 2} className="px-4 py-8 text-center text-muted-foreground">
-                    No active students found.
+                  <td
+                    colSpan={daysArray.length + 2}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    No active students found for the selected institution.
                   </td>
                 </tr>
               )}
