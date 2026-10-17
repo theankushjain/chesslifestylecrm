@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,54 +30,126 @@ const STATUS_ICONS = {
   late: { icon: Clock, color: "text-warning" },
 };
 
+const STORAGE_KEY = "crm_attendance_institute_filter";
+
 export default function AttendanceReport() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Persistent institute filter across month navigation, student views, and browser back/forward
+  const [instituteFilter, setInstituteFilterState] = useState(() => {
+    const fromUrl = searchParams.get("institute");
+    if (fromUrl) return fromUrl;
+    try {
+      const fromStorage = localStorage.getItem(STORAGE_KEY);
+      if (fromStorage) return fromStorage;
+    } catch (e) {}
+    return "all";
+  });
+
   const [students, setStudents] = useState([]);
   const [institutes, setInstitutes] = useState([]);
   const [attendance, setAttendance] = useState([]);
-  const [instituteFilter, setInstituteFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      // Determine start and end date for the selected month
-      const startDate = new Date(year, month, 1).toLocaleDateString("en-CA"); // YYYY-MM-DD
-      const endDate = new Date(year, month + 1, 0).toLocaleDateString("en-CA");
+  // Handle institute filter change with persistent URL and localStorage
+  const handleInstituteChange = useCallback(
+    (val) => {
+      setInstituteFilterState(val);
+      try {
+        localStorage.setItem(STORAGE_KEY, val);
+      } catch (e) {}
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (val === "all") {
+            next.delete("institute");
+          } else {
+            next.set("institute", val);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
-      const [stdRes, instRes, attRes] = await Promise.all([
-        api.get("/students"),
-        api.get("/institutes"),
-        api.get(`/attendance?start_date=${startDate}&end_date=${endDate}`),
-      ]);
-
-      const activeStudents = (stdRes.data || []).filter((s) => s.status === "active");
-      setStudents(activeStudents);
-      setInstitutes(instRes.data || []);
-      setAttendance(attRes.data || []);
-    } catch (e) {
-      toast.error(formatApiError(e));
-    } finally {
-      setLoading(false);
+  // Sync if URL query param changes via browser Back/Forward
+  useEffect(() => {
+    const fromUrl = searchParams.get("institute") || "all";
+    if (fromUrl !== instituteFilter) {
+      setInstituteFilterState(fromUrl);
+      try {
+        localStorage.setItem(STORAGE_KEY, fromUrl);
+      } catch (e) {}
     }
-  };
+  }, [searchParams, instituteFilter]);
+
+  // Load students & institutes once on initial mount
+  useEffect(() => {
+    let active = true;
+    const loadMeta = async () => {
+      try {
+        const [stdRes, instRes] = await Promise.all([
+          api.get("/students"),
+          api.get("/institutes"),
+        ]);
+        if (!active) return;
+        const activeStudents = (stdRes.data || []).filter(
+          (s) => s.status === "active"
+        );
+        setStudents(activeStudents);
+        setInstitutes(instRes.data || []);
+      } catch (e) {
+        if (active) toast.error(formatApiError(e));
+      } finally {
+        if (active) setMetaLoading(false);
+      }
+    };
+    loadMeta();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load attendance data whenever year or month changes
+  const loadAttendance = useCallback(
+    async (y, m) => {
+      setAttendanceLoading(true);
+      try {
+        const startDate = new Date(y, m, 1).toLocaleDateString("en-CA");
+        const endDate = new Date(y, m + 1, 0).toLocaleDateString("en-CA");
+        const { data } = await api.get(
+          `/attendance?start_date=${startDate}&end_date=${endDate}`
+        );
+        setAttendance(data || []);
+      } catch (e) {
+        toast.error(formatApiError(e));
+      } finally {
+        setAttendanceLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month]);
+    loadAttendance(year, month);
+  }, [year, month, loadAttendance]);
 
+  // Month navigation: purely updates currentDate, NEVER touches or resets instituteFilter
   const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -103,7 +175,7 @@ export default function AttendanceReport() {
           ? true
           : instituteFilter === "unassigned"
           ? !s.institute_id
-          : s.institute_id === instituteFilter;
+          : String(s.institute_id || "") === String(instituteFilter);
 
       const q = searchQuery.toLowerCase().trim();
       const matchesQuery = q
@@ -117,8 +189,26 @@ export default function AttendanceReport() {
     });
   }, [students, instituteFilter, searchQuery]);
 
+  // Selected institute label for the Select display
+  const selectedInstituteLabel = useMemo(() => {
+    if (instituteFilter === "all") {
+      return `All Institutions (${students.length})`;
+    }
+    if (instituteFilter === "unassigned") {
+      const count = students.filter((s) => !s.institute_id).length;
+      return `Direct Enrollment (${count})`;
+    }
+    const found = institutes.find((i) => String(i.id) === String(instituteFilter));
+    if (found) {
+      const count = students.filter(
+        (s) => String(s.institute_id) === String(found.id)
+      ).length;
+      return `${found.name} (${count})`;
+    }
+    return "Select Institution";
+  }, [instituteFilter, students, institutes]);
+
   const toggleAttendance = async (studentId, dateStr, currentStatus) => {
-    // Determine next status: empty -> present -> absent -> late -> empty...
     const nextStatus = !currentStatus
       ? "present"
       : currentStatus === "present"
@@ -165,22 +255,22 @@ export default function AttendanceReport() {
       }
     } catch (e) {
       toast.error(formatApiError(e));
-      // Revert on error
-      load();
+      loadAttendance(year, month);
     }
   };
 
   const handleExportPDF = () => {
     const head = ["Student Name", "Campus", "Total Absents (A)", "Total Presents (P)"];
 
-    // Calculate totals for filtered students
     const summaryData = filteredStudents.map((s) => {
       const stdAtt = attendanceMap[s.id] || {};
       let presentCount = 0;
       let absentCount = 0;
 
       for (const day of daysArray) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+          day
+        ).padStart(2, "0")}`;
         const status = stdAtt[dateStr];
         if (status === "present" || status === "late") presentCount++;
         else if (status === "absent") absentCount++;
@@ -194,7 +284,6 @@ export default function AttendanceReport() {
       };
     });
 
-    // Sort by max absents
     summaryData.sort((a, b) => b.absentCount - a.absentCount);
 
     const body = summaryData.map((s) => [
@@ -214,11 +303,15 @@ export default function AttendanceReport() {
         ? "All Institutions"
         : instituteFilter === "unassigned"
         ? "Direct Enrollment"
-        : institutes.find((i) => i.id === instituteFilter)?.name || "Selected Institution";
+        : institutes.find((i) => String(i.id) === String(instituteFilter))?.name ||
+          "Selected Institution";
 
     generatePDF({
       title: `Monthly Attendance Summary - ${monthName}`,
-      filename: `attendance_summary_${selectedInstName.replace(/\s+/g, "_")}_${monthName.replace(/\s+/g, "_")}.pdf`,
+      filename: `attendance_summary_${selectedInstName.replace(
+        /\s+/g,
+        "_"
+      )}_${monthName.replace(/\s+/g, "_")}.pdf`,
       summary: [
         `Institution: ${selectedInstName}`,
         `Total Students in Scope: ${filteredStudents.length}`,
@@ -241,18 +334,38 @@ export default function AttendanceReport() {
 
         <div className="flex items-center gap-4 flex-wrap">
           {user?.role === "admin" && (
-            <Button variant="outline" onClick={handleExportPDF} className="rounded-xl h-10">
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              className="rounded-xl h-10"
+              disabled={metaLoading}
+            >
               <FileText className="w-4 h-4 mr-1.5" /> PDF
             </Button>
           )}
           <div className="flex items-center gap-4 bg-white border border-border/40 shadow-sm rounded-xl p-1">
-            <Button variant="ghost" size="icon" onClick={prevMonth} className="rounded-xl">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={prevMonth}
+              className="rounded-xl"
+              title="Previous month"
+            >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <div className="font-medium text-sm w-32 text-center uppercase tracking-widest">
-              {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
+            <div className="font-medium text-sm w-36 text-center uppercase tracking-widest select-none">
+              {currentDate.toLocaleString("default", {
+                month: "long",
+                year: "numeric",
+              })}
             </div>
-            <Button variant="ghost" size="icon" onClick={nextMonth} className="rounded-xl">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={nextMonth}
+              className="rounded-xl"
+              title="Next month"
+            >
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -271,13 +384,16 @@ export default function AttendanceReport() {
           />
         </div>
 
-        <Select value={instituteFilter} onValueChange={setInstituteFilter}>
+        <Select
+          value={instituteFilter}
+          onValueChange={handleInstituteChange}
+        >
           <SelectTrigger
             data-testid="attendance-institution-select"
-            className="w-full sm:w-[260px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10 font-medium"
+            className="w-full sm:w-[280px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10 font-medium"
           >
             <Building2 className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
-            <SelectValue placeholder="All Institutions" />
+            <SelectValue>{selectedInstituteLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-xl max-h-72">
             <SelectItem value="all">
@@ -288,7 +404,9 @@ export default function AttendanceReport() {
             </SelectItem>
             {institutes.length > 0 && <div className="border-t border-border/40 my-1" />}
             {institutes.map((inst) => {
-              const count = students.filter((s) => s.institute_id === inst.id).length;
+              const count = students.filter(
+                (s) => String(s.institute_id) === String(inst.id)
+              ).length;
               return (
                 <SelectItem key={inst.id} value={inst.id}>
                   {inst.name} ({count})
@@ -299,10 +417,16 @@ export default function AttendanceReport() {
         </Select>
       </div>
 
-      {loading ? (
-        <div className="text-sm text-muted-foreground">Loading attendance...</div>
+      {metaLoading ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">
+          Loading student roster...
+        </div>
       ) : (
-        <div className="bg-white border border-border/40 shadow-sm rounded-xl overflow-x-auto">
+        <div
+          className={`bg-white border border-border/40 shadow-sm rounded-xl overflow-x-auto transition-opacity duration-150 ${
+            attendanceLoading ? "opacity-60" : "opacity-100"
+          }`}
+        >
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-secondary/50 border-b border-border/60">
               <tr>
@@ -344,9 +468,10 @@ export default function AttendanceReport() {
                       </Link>
                     </td>
                     {daysArray.map((day) => {
-                      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-                        day
-                      ).padStart(2, "0")}`;
+                      const dateStr = `${year}-${String(month + 1).padStart(
+                        2,
+                        "0"
+                      )}-${String(day).padStart(2, "0")}`;
                       const status = stdAtt[dateStr];
 
                       if (status === "present") presentCount++;

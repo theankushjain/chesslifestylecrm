@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2 } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentReminderMessage } from "@/lib/whatsapp";
 import { useAuth } from "@/context/AuthContext";
@@ -86,12 +86,52 @@ function MonthlyProgressDialog() {
 
 export default function Students() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [instituteFilter, setInstituteFilterState] = useState(() => {
+    const fromUrl = searchParams.get("institute");
+    if (fromUrl) return fromUrl;
+    try {
+      const fromStorage = localStorage.getItem("crm_students_institute_filter");
+      if (fromStorage) return fromStorage;
+    } catch (e) {}
+    return "all";
+  });
+
   const [students, setStudents] = useState([]);
   const [institutes, setInstitutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [instituteFilter, setInstituteFilter] = useState("all");
   const [open, setOpen] = useState(false);
+
+  const handleInstituteChange = (val) => {
+    setInstituteFilterState(val);
+    try {
+      localStorage.setItem("crm_students_institute_filter", val);
+    } catch (e) {}
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (val === "all") {
+          next.delete("institute");
+        } else {
+          next.set("institute", val);
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
+  useEffect(() => {
+    const paramInst = searchParams.get("institute") || "all";
+    if (paramInst !== instituteFilter) {
+      setInstituteFilterState(paramInst);
+      try {
+        localStorage.setItem("crm_students_institute_filter", paramInst);
+      } catch (e) {}
+    }
+  }, [searchParams, instituteFilter]);
 
   const load = async () => {
     try {
@@ -119,7 +159,7 @@ export default function Students() {
         ? true
         : instituteFilter === "unassigned"
         ? !s.institute_id
-        : s.institute_id === instituteFilter;
+        : String(s.institute_id || "") === String(instituteFilter);
     return matchesQuery && matchesInstitute;
   });
 
@@ -180,17 +220,23 @@ export default function Students() {
             className="pl-10 rounded-xl bg-white" />
         </div>
 
-        <Select value={instituteFilter} onValueChange={setInstituteFilter}>
-          <SelectTrigger className="w-full sm:w-[220px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
+        <Select value={instituteFilter} onValueChange={handleInstituteChange}>
+          <SelectTrigger className="w-full sm:w-[240px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
             <Building2 className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
-            <SelectValue placeholder="All Institutes" />
+            <SelectValue>
+              {instituteFilter === "all"
+                ? `All Institutes (${students.length})`
+                : instituteFilter === "unassigned"
+                ? `Direct / No Institute (${students.filter((s) => !s.institute_id).length})`
+                : institutes.find((inst) => String(inst.id) === String(instituteFilter))?.name || "All Institutes"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-xl">
             <SelectItem value="all">All Institutes ({students.length})</SelectItem>
             <SelectItem value="unassigned">Direct / No Institute ({students.filter(s => !s.institute_id).length})</SelectItem>
             {institutes.map((inst) => (
               <SelectItem key={inst.id} value={inst.id}>
-                {inst.name} ({students.filter(s => s.institute_id === inst.id).length})
+                {inst.name} ({students.filter(s => String(s.institute_id) === String(inst.id)).length})
               </SelectItem>
             ))}
           </SelectContent>
