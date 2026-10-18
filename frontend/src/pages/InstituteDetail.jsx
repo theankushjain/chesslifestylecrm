@@ -41,6 +41,7 @@ import {
   Pencil,
   Check,
   CheckCircle2,
+  ClipboardList,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -220,6 +221,15 @@ export default function InstituteDetail() {
                 <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Institute
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/attendance?institute=${institute.id}`)}
+              className="rounded-xl h-9"
+              title="Mark or view attendance for this institute"
+            >
+              <ClipboardList className="w-3.5 h-3.5 mr-1.5 text-primary" /> Mark Attendance
+            </Button>
             <Button
               variant="outline"
               size="sm"
