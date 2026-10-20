@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy, Building2, Plus } from "lucide-react";
+import { ArrowLeft, Phone, CheckCircle2, XCircle, Clock, Calendar, Pencil, Trash2, Cake, Copy, Building2, Plus, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LearningProgressTab from "./LearningProgressTab";
 import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
 import { AddFeeDialog } from "@/components/crm/AddFeeDialog";
+import { GenerateInvoiceDialog } from "@/components/crm/GenerateInvoiceDialog";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -38,6 +39,7 @@ export default function StudentDetail() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [paymentToMark, setPaymentToMark] = useState(null);
   const [addFeeOpen, setAddFeeOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
   const canEdit = user.role === "admin" || user.role === "staff";
   const canDelete = user.role === "admin";
@@ -268,9 +270,14 @@ export default function StudentDetail() {
             <div className="flex items-center justify-between mb-2">
               <div className="label-over !mb-0">Fees</div>
               {canEdit && (
-                <Button size="sm" variant="outline" onClick={() => setAddFeeOpen(true)} className="rounded-xl h-7 text-xs">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Fee
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setInvoiceOpen(true)} className="rounded-xl h-7 text-xs" data-testid="generate-invoice-open-btn">
+                    <FileText className="w-3.5 h-3.5 mr-1" /> Invoice
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAddFeeOpen(true)} className="rounded-xl h-7 text-xs">
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Fee
+                  </Button>
+                </div>
               )}
             </div>
             <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
@@ -346,6 +353,12 @@ export default function StudentDetail() {
         existingPayments={payments}
         initialStudentId={student?.id}
         onSuccess={load}
+      />
+
+      <GenerateInvoiceDialog
+        open={invoiceOpen}
+        onOpenChange={setInvoiceOpen}
+        student={student}
       />
     </div>
   );
