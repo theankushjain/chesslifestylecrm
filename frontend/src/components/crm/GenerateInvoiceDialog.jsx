@@ -46,7 +46,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
   const derivedDescNotes = (() => {
     const d = invoiceDate ? new Date(invoiceDate + "T12:00:00") : now;
     const mLabel = MONTHS[d.getMonth()];
-    return `${qty} classes in ${mLabel} ${d.getFullYear()}`;
+    return `${qty} regular classes in ${mLabel} ${d.getFullYear()}`;
   })();
 
   const [descNotesOverride, setDescNotesOverride] = useState(null); // null = use derived
@@ -263,7 +263,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
                 value={descNotes}
                 onChange={(e) => setDescNotesOverride(e.target.value)}
                 className="rounded-xl"
-                placeholder="e.g. 6 classes in Oct 2026"
+                placeholder="e.g. 8 regular classes in Oct 2026"
               />
             </div>
           </div>
