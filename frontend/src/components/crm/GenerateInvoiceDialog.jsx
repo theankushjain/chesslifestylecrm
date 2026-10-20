@@ -37,10 +37,20 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
   const [amountMode, setAmountMode]   = useState("default"); // "default" | "custom"
   const [customAmt,  setCustomAmt]    = useState("");
   const [description, setDescription] = useState("Monthly Chess Classes");
-  const [descNotes,   setDescNotes]   = useState("");
-  const [qty,         setQty]         = useState(1);
+
+  const [qty,         setQty]         = useState(8);
   const [invoiceDate, setInvoiceDate] = useState(now.toISOString().slice(0,10));
   const [previewNum,  setPreviewNum]  = useState("");
+
+  /* Auto-derive sub-description from qty + invoiceDate */
+  const derivedDescNotes = (() => {
+    const d = invoiceDate ? new Date(invoiceDate + "T12:00:00") : now;
+    const mLabel = MONTHS[d.getMonth()];
+    return `${qty} classes in ${mLabel} ${d.getFullYear()}`;
+  })();
+
+  const [descNotesOverride, setDescNotesOverride] = useState(null); // null = use derived
+  const descNotes = descNotesOverride !== null ? descNotesOverride : derivedDescNotes;
 
   /* re-compute preview invoice number whenever date changes */
   useEffect(() => {
@@ -57,9 +67,8 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
       setAmountMode("default");
       setCustomAmt("");
       setDescription("Monthly Chess Classes");
-      const mLabel = MONTHS[now.getMonth()];
-      setDescNotes(`${qty} classes in ${mLabel} ${now.getFullYear()}`);
-      setQty(1);
+      setQty(8);
+      setDescNotesOverride(null);
       setInvoiceDate(now.toISOString().slice(0,10));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,7 +248,10 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
                 type="number"
                 min={1}
                 value={qty}
-                onChange={(e) => setQty(e.target.value)}
+                onChange={(e) => {
+                  setQty(e.target.value);
+                  setDescNotesOverride(null); // re-derive from new qty
+                }}
                 className="rounded-xl"
               />
             </div>
@@ -249,7 +261,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
               </Label>
               <Input
                 value={descNotes}
-                onChange={(e) => setDescNotes(e.target.value)}
+                onChange={(e) => setDescNotesOverride(e.target.value)}
                 className="rounded-xl"
                 placeholder="e.g. 6 classes in Oct 2026"
               />
