@@ -42,6 +42,8 @@ import {
   Check,
   CheckCircle2,
   ClipboardList,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -60,6 +62,7 @@ export default function InstituteDetail() {
   const [institute, setInstitute] = useState(null);
   const [allInstitutes, setAllInstitutes] = useState([]);
   const [students, setStudents] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -73,14 +76,16 @@ export default function InstituteDetail() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [instRes, allInstRes, stuRes] = await Promise.all([
+      const [instRes, allInstRes, stuRes, batchRes] = await Promise.all([
         api.get(`/institutes/${id}`),
         api.get("/institutes"),
         api.get(`/institutes/${id}/students`),
+        api.get("/batches", { params: { institute_id: id } }).catch(() => ({ data: [] })),
       ]);
       setInstitute(instRes.data);
       setAllInstitutes(allInstRes.data);
       setStudents(stuRes.data);
+      setBatches(batchRes.data || []);
     } catch (e) {
       toast.error(formatApiError(e));
     } finally {
@@ -117,8 +122,10 @@ export default function InstituteDetail() {
       "Phone": s.phone || "",
       "Parent Name": s.parent_name || "",
       "Parent Phone": s.parent_phone || "",
-      "Fee Type": s.fee_type || "monthly",
-      "Fee Amount": s.fee_amount || s.monthly_fee || 0,
+      ...(user?.role === "admin" ? {
+        "Fee Type": s.fee_type || "monthly",
+        "Fee Amount": s.fee_amount || s.monthly_fee || 0,
+      } : {}),
       "Status": s.status || "active",
       "Grade": s.grade || "",
       "Date of Birth": s.dob || "",
@@ -306,6 +313,75 @@ export default function InstituteDetail() {
         )}
       </div>
 
+      {/* Mapped Classes / Batches Section */}
+      <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-xl font-serif font-bold flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span>Classes & Batches</span>
+              <span className="text-xs font-sans font-normal px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                {batches.length} batch{batches.length !== 1 ? "es" : ""}
+              </span>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Scheduled classes mapped directly to {institute.name}.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/classes")}
+            className="rounded-xl h-8 text-xs"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
+          </Button>
+        </div>
+
+        {batches.length === 0 ? (
+          <div className="p-5 text-center text-xs text-muted-foreground border border-dashed border-border/60 rounded-xl">
+            No classes mapped to this institution yet. Go to Classes to map a batch.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {batches.map((b) => (
+              <Link
+                key={b.id}
+                to={`/classes/${b.id}`}
+                className="p-4 border border-border/40 rounded-xl hover:border-primary transition-colors bg-muted/5 group"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      {b.level}
+                    </span>
+                    <h3 className="font-medium text-sm text-foreground mt-0.5 group-hover:text-primary transition-colors">
+                      {b.name}
+                    </h3>
+                    {b.coach && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Coach: {b.coach}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+                <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {b.student_ids?.length || 0} students
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {Array.isArray(b.schedule) ? b.schedule.length : 0}x / week
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Students Section Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
@@ -384,10 +460,10 @@ export default function InstituteDetail() {
       ) : (
         <div className="bg-white border border-border/40 rounded-xl shadow-sm overflow-hidden divide-y divide-border/60">
           <div className="hidden md:grid grid-cols-12 gap-3 p-3.5 bg-muted/30 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <div className="col-span-4">Student</div>
+            <div className={user?.role === "admin" ? "col-span-4" : "col-span-5"}>Student</div>
             <div className="col-span-2">Level & Grade</div>
-            <div className="col-span-3">Parent & Contact</div>
-            <div className="col-span-2">Fees</div>
+            <div className={user?.role === "admin" ? "col-span-3" : "col-span-4"}>Parent & Contact</div>
+            {user?.role === "admin" && <div className="col-span-2">Fees</div>}
             <div className="col-span-1 text-right">Actions</div>
           </div>
 
@@ -400,7 +476,7 @@ export default function InstituteDetail() {
                 data-testid={`student-row-${s.id}`}
               >
                 {/* Name & Avatar */}
-                <div className="col-span-4 flex items-center gap-3 w-full">
+                <div className={`${user?.role === "admin" ? "col-span-4" : "col-span-5"} flex items-center gap-3 w-full`}>
                   <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-serif font-bold text-sm shrink-0">
                     {s.name[0]}
                   </div>
@@ -432,7 +508,7 @@ export default function InstituteDetail() {
                 </div>
 
                 {/* Parent contact */}
-                <div className="col-span-3 text-xs">
+                <div className={`${user?.role === "admin" ? "col-span-3" : "col-span-4"} text-xs`}>
                   <div className="text-foreground font-medium flex items-center gap-1.5">
                     <span>{s.parent_name || "Parent"}</span>
                     {parentContact && (
@@ -452,15 +528,17 @@ export default function InstituteDetail() {
                   )}
                 </div>
 
-                {/* Fees */}
-                <div className="col-span-2 text-xs">
-                  <div className="font-mono font-medium text-foreground">
-                    ₹{s.fee_amount || s.monthly_fee || 0}
+                {/* Fees - visible only to admin */}
+                {user?.role === "admin" && (
+                  <div className="col-span-2 text-xs">
+                    <div className="font-mono font-medium text-foreground">
+                      ₹{s.fee_amount || s.monthly_fee || 0}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {s.fee_type === "per_class" ? "Per Class" : "Monthly"}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    {s.fee_type === "per_class" ? "Per Class" : "Monthly"}
-                  </div>
-                </div>
+                )}
 
                 {/* Actions */}
                 <div className="col-span-1 flex items-center justify-end gap-1.5 w-full md:w-auto">
@@ -507,6 +585,7 @@ export default function InstituteDetail() {
 }
 
 function EnrollStudentModal({ open, onOpenChange, institute, onEnrolled }) {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("new");
   const [unassignedStudents, setUnassignedStudents] = useState([]);
   const [loadingUnassigned, setLoadingUnassigned] = useState(false);
@@ -687,33 +766,35 @@ function EnrollStudentModal({ open, onOpenChange, institute, onEnrolled }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs uppercase tracking-widest font-semibold">Fee Type</Label>
-                  <Select
-                    value={newStudent.fee_type}
-                    onValueChange={(val) => setNewStudent({ ...newStudent, fee_type: val })}
-                  >
-                    <SelectTrigger className="rounded-xl mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="per_class">Per Class</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {user?.role === "admin" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs uppercase tracking-widest font-semibold">Fee Type</Label>
+                    <Select
+                      value={newStudent.fee_type}
+                      onValueChange={(val) => setNewStudent({ ...newStudent, fee_type: val })}
+                    >
+                      <SelectTrigger className="rounded-xl mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="per_class">Per Class</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div>
-                  <Label className="text-xs uppercase tracking-widest font-semibold">Fee Amount (₹)</Label>
-                  <Input
-                    type="number"
-                    value={newStudent.fee_amount}
-                    onChange={(e) => setNewStudent({ ...newStudent, fee_amount: Number(e.target.value) })}
-                    className="rounded-xl mt-1 font-mono"
-                  />
+                  <div>
+                    <Label className="text-xs uppercase tracking-widest font-semibold">Fee Amount (₹)</Label>
+                    <Input
+                      type="number"
+                      value={newStudent.fee_amount}
+                      onChange={(e) => setNewStudent({ ...newStudent, fee_amount: Number(e.target.value) })}
+                      className="rounded-xl mt-1 font-mono"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <Label className="text-xs uppercase tracking-widest font-semibold">Date of Birth</Label>

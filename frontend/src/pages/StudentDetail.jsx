@@ -123,10 +123,12 @@ export default function StudentDetail() {
             <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
               <div>{student.phone || "no phone"}</div>
               <div>Parent: {student.parent_name || "—"} · {student.parent_phone || "—"}</div>
-              <div className="bg-secondary/30 p-4 mt-2 border border-border/40 rounded-xl space-y-3">
-                <div className="label-over text-muted-foreground">Fee Details</div>
-                <div className="font-mono">₹{student.fee_amount || student.monthly_fee}/{student.fee_type === "per_class" ? "class" : "month"}</div>
-              </div>
+              {user?.role === "admin" && (student.fee_amount || student.monthly_fee) ? (
+                <div className="bg-secondary/30 p-4 mt-2 border border-border/40 rounded-xl space-y-3">
+                  <div className="label-over text-muted-foreground">Fee Details</div>
+                  <div className="font-mono">₹{student.fee_amount || student.monthly_fee}/{student.fee_type === "per_class" ? "class" : "month"}</div>
+                </div>
+              ) : null}
               {(student.school || student.grade) && (
                 <div>School: {student.school || "—"} {student.grade ? `(${student.grade})` : ""}</div>
               )}
@@ -265,43 +267,45 @@ export default function StudentDetail() {
             </div>
           </div>
 
-          {/* Payments */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="label-over !mb-0">Fees</div>
-              {canEdit && (
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setInvoiceOpen(true)} className="rounded-xl h-7 text-xs" data-testid="generate-invoice-open-btn">
-                    <FileText className="w-3.5 h-3.5 mr-1" /> Invoice
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setAddFeeOpen(true)} className="rounded-xl h-7 text-xs">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Fee
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
-              {payments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-4">
-                  <div>
-                    <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
-                    <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
+          {/* Payments - only visible to admin */}
+          {user?.role === "admin" && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="label-over !mb-0">Fees</div>
+                {canEdit && (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setInvoiceOpen(true)} className="rounded-xl h-7 text-xs" data-testid="generate-invoice-open-btn">
+                      <FileText className="w-3.5 h-3.5 mr-1" /> Invoice
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setAddFeeOpen(true)} className="rounded-xl h-7 text-xs">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Fee
+                    </Button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {p.status !== "paid" ? (
-                      <Button size="sm" variant="outline" onClick={() => setPaymentToMark(p)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
-                    ) : (
-                      <span className="text-xs text-success uppercase tracking-widest">Paid {p.method ? `(${p.method})` : ""}</span>
-                    )}
-                    <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                )}
+              </div>
+              <div className="bg-white border border-border/40 shadow-sm rounded-xl divide-y divide-border/60">
+                {payments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-4">
+                    <div>
+                      <div className="text-sm font-medium">{monthName(p.month)} {p.year}</div>
+                      <div className="text-xs text-muted-foreground font-mono">₹{p.amount} · {p.status}</div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {p.status !== "paid" ? (
+                        <Button size="sm" variant="outline" onClick={() => setPaymentToMark(p)} data-testid={`mark-paid-${p.id}`} className="rounded-xl">Mark paid</Button>
+                      ) : (
+                        <span className="text-xs text-success uppercase tracking-widest">Paid {p.method ? `(${p.method})` : ""}</span>
+                      )}
+                      <button onClick={() => deletePayment(p.id)} className="p-2 text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30" title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {payments.length === 0 && <div className="p-4 text-sm text-muted-foreground">No fee records.</div>}
+                ))}
+                {payments.length === 0 && <div className="p-4 text-sm text-muted-foreground">No fee records.</div>}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Attendance history */}
           <div>
@@ -338,28 +342,32 @@ export default function StudentDetail() {
         </TabsContent>
       </Tabs>
 
-      <MarkPaidDialog
-        open={!!paymentToMark}
-        onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
-        payment={paymentToMark}
-        studentName={student?.name || "Student"}
-        onSuccess={load}
-      />
+      {user?.role === "admin" && (
+        <>
+          <MarkPaidDialog
+            open={!!paymentToMark}
+            onOpenChange={(isOpen) => { if (!isOpen) setPaymentToMark(null); }}
+            payment={paymentToMark}
+            studentName={student?.name || "Student"}
+            onSuccess={load}
+          />
 
-      <AddFeeDialog
-        open={addFeeOpen}
-        onOpenChange={setAddFeeOpen}
-        students={student ? [student] : []}
-        existingPayments={payments}
-        initialStudentId={student?.id}
-        onSuccess={load}
-      />
+          <AddFeeDialog
+            open={addFeeOpen}
+            onOpenChange={setAddFeeOpen}
+            students={student ? [student] : []}
+            existingPayments={payments}
+            initialStudentId={student?.id}
+            onSuccess={load}
+          />
 
-      <GenerateInvoiceDialog
-        open={invoiceOpen}
-        onOpenChange={setInvoiceOpen}
-        student={student}
-      />
+          <GenerateInvoiceDialog
+            open={invoiceOpen}
+            onOpenChange={setInvoiceOpen}
+            student={student}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -367,6 +375,7 @@ export default function StudentDetail() {
 const monthName = (m) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1];
 
 function StudentEditDialog({ student, onSaved }) {
+  const { user } = useAuth();
   const [institutes, setInstitutes] = useState([]);
   useEffect(() => {
     api.get("/institutes").then((res) => setInstitutes(res.data)).catch(() => {});
@@ -486,21 +495,37 @@ function StudentEditDialog({ student, onSaved }) {
           <Label className="text-xs uppercase tracking-widest">Hobbies</Label>
           <Input value={form.hobby} onChange={(e) => setForm({ ...form, hobby: e.target.value })} className="rounded-xl" />
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label className="text-xs uppercase tracking-widest">Fee Type</Label>
-            <Select value={form.fee_type} onValueChange={(v) => setForm({ ...form, fee_type: v })}>
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="per_class">Per Class</SelectItem>
-              </SelectContent>
-            </Select>
+        {user?.role === "admin" ? (
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs uppercase tracking-widest">Fee Type</Label>
+              <Select value={form.fee_type} onValueChange={(v) => setForm({ ...form, fee_type: v })}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="per_class">Per Class</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-widest">Fee Amount (₹)</Label>
+              <Input type="number" data-testid="student-edit-fee" value={form.fee_amount} onChange={(e) => setForm({ ...form, fee_amount: Number(e.target.value) })} className="rounded-xl" />
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-widest">Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="on hold">On Hold</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="graduated">Graduated</SelectItem>
+                  <SelectItem value="exited">Exited</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs uppercase tracking-widest">Fee Amount (₹)</Label>
-            <Input type="number" data-testid="student-edit-fee" value={form.fee_amount} onChange={(e) => setForm({ ...form, fee_amount: Number(e.target.value) })} className="rounded-xl" />
-          </div>
+        ) : (
           <div>
             <Label className="text-xs uppercase tracking-widest">Status</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
@@ -514,7 +539,7 @@ function StudentEditDialog({ student, onSaved }) {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        )}
         <div>
           <Label className="text-xs uppercase tracking-widest">Notes</Label>
           <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" rows={3} />

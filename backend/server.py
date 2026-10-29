@@ -265,6 +265,8 @@ class BatchIn(BaseModel):
     level: str = "Beginner"
     coach: str = ""
     notes: str = ""
+    institute_id: Optional[str] = None
+    institute_name: Optional[str] = None
     student_ids: List[str] = []
     schedule: List[ScheduleSlot] = []
 
@@ -273,6 +275,8 @@ class BatchUpdate(BaseModel):
     level: Optional[str] = None
     coach: Optional[str] = None
     notes: Optional[str] = None
+    institute_id: Optional[str] = None
+    institute_name: Optional[str] = None
     student_ids: Optional[List[str]] = None
     schedule: Optional[List[ScheduleSlot]] = None
 
@@ -281,6 +285,8 @@ class TakeAttendanceIn(BaseModel):
     topic: str = ""
     absent_ids: List[str] = []
     late_ids: List[str] = []
+    selected_outcome_texts: Optional[List[str]] = []
+    custom_topics: Optional[List[str]] = []
 
 class TransactionIn(BaseModel):
     type: str
@@ -848,6 +854,11 @@ async def get_public_progress(sid: str):
         "outcomes": outcomes
     }
 
+@api.get("/progress/outcomes")
+async def list_progress_outcomes(user: dict = Depends(require_roles("admin", "staff"))):
+    template = get_progress_template()
+    return template
+
 
 def set_auth_cookie(resp: Response, token: str):
     resp.set_cookie("access_token", token, httponly=True, secure=True, samesite="none",
@@ -944,6 +955,14 @@ async def update_my_profile(body: ProfileUpdate, user: dict = Depends(get_curren
     return clean(updated_user)
 
 
+def redact_fee_fields(doc: dict, role: str) -> dict:
+    if role == "staff":
+        doc.pop("monthly_fee", None)
+        doc.pop("fee_amount", None)
+        doc.pop("fee_type", None)
+    return doc
+
+
 @api.get("/students")
 async def list_students(institute_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     if user["role"] == "student":
@@ -958,11 +977,15 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
             else:
                 q["institute_id"] = institute_id
         docs = await db.students.find(q).sort("name", 1).to_list(1000)
-    return [clean(d) for d in docs]
+    return [redact_fee_fields(clean(d), user["role"]) for d in docs]
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
     data = body.model_dump()
+    if user["role"] == "staff":
+        data.pop("monthly_fee", None)
+        data.pop("fee_amount", None)
+        data.pop("fee_type", None)
     if data.get("institute_id") and not data.get("institute_name"):
         inst = await db.institutes.find_one({"_id": data["institute_id"]})
         if inst:
@@ -970,7 +993,7 @@ async def create_student(body: StudentIn, user: dict = Depends(require_roles("ad
     doc = {"_id": str(uuid.uuid4()), **data,
            "joined_date": iso(now_utc()), "created_at": iso(now_utc())}
     await db.students.insert_one(doc)
-    return clean(doc)
+    return redact_fee_fields(clean(doc), user["role"])
 
 @api.get("/students/{sid}")
 async def get_student(sid: str, user: dict = Depends(get_current_user)):
@@ -979,11 +1002,15 @@ async def get_student(sid: str, user: dict = Depends(get_current_user)):
     doc = await db.students.find_one({"_id": sid})
     if not doc:
         raise HTTPException(404, "Not found")
-    return clean(doc)
+    return redact_fee_fields(clean(doc), user["role"])
 
 @api.patch("/students/{sid}")
 async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if user["role"] == "staff":
+        updates.pop("monthly_fee", None)
+        updates.pop("fee_amount", None)
+        updates.pop("fee_type", None)
     if "institute_id" in updates:
         if updates["institute_id"]:
             inst = await db.institutes.find_one({"_id": updates["institute_id"]})
@@ -996,7 +1023,7 @@ async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(req
     doc = await db.students.find_one({"_id": sid})
     if not doc:
         raise HTTPException(404, "Not found")
-    return clean(doc)
+    return redact_fee_fields(clean(doc), user["role"])
 
 @api.delete("/students/{sid}")
 async def delete_student(sid: str, user: dict = Depends(require_roles("admin"))):
@@ -1086,6 +1113,8 @@ async def delete_attendance(student_id: str, date: str, user: dict = Depends(req
 
 @api.get("/payments")
 async def list_payments(student_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if user["role"] == "staff":
+        return []
     q = {}
     if user["role"] == "student":
         sid = user.get("linked_student_id")
@@ -1097,7 +1126,7 @@ async def list_payments(student_id: Optional[str] = None, user: dict = Depends(g
     return [clean(d) for d in docs]
 
 @api.post("/payments")
-async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("admin", "staff"))):
+async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("admin"))):
     if body.amount < 0:
         raise HTTPException(400, "Payment amount cannot be negative")
     if body.month < 1 or body.month > 12:
@@ -1166,7 +1195,7 @@ async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("ad
     return clean(doc)
 
 @api.post("/payments/generate")
-async def generate_payments(body: Optional[GeneratePaymentsIn] = Body(None), user: dict = Depends(require_roles("admin", "staff"))):
+async def generate_payments(body: Optional[GeneratePaymentsIn] = Body(None), user: dict = Depends(require_roles("admin"))):
     now = datetime.now()
     cur_year = (body.year if body and body.year else None) or now.year
     cur_month = (body.month if body and body.month else None) or now.month
@@ -1236,7 +1265,7 @@ async def generate_payments(body: Optional[GeneratePaymentsIn] = Body(None), use
 
 
 @api.patch("/payments/{pid}")
-async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
+async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(require_roles("admin"))):
     if body.amount is not None and body.amount < 0:
         raise HTTPException(400, "Payment amount cannot be negative")
     
@@ -1546,13 +1575,30 @@ def today_day_key() -> str:
 
 
 @api.get("/batches")
-async def list_batches(user: dict = Depends(require_roles("admin", "staff"))):
-    docs = await db.batches.find().sort("name", 1).to_list(200)
+async def list_batches(institute_id: Optional[str] = None, user: dict = Depends(require_roles("admin", "staff"))):
+    q = {}
+    if institute_id:
+        if institute_id == "unassigned":
+            q["$or"] = [{"institute_id": None}, {"institute_id": ""}, {"institute_id": {"$exists": False}}]
+        else:
+            q["institute_id"] = institute_id
+    docs = await db.batches.find(q).sort("name", 1).to_list(500)
     return [clean(d) for d in docs]
 
 @api.post("/batches")
 async def create_batch(body: BatchIn, user: dict = Depends(require_roles("admin", "staff"))):
-    doc = {"_id": str(uuid.uuid4()), **body.model_dump(), "created_at": iso(now_utc())}
+    data = body.model_dump()
+    if data.get("institute_id") and data.get("institute_id") != "none":
+        inst = await db.institutes.find_one({"_id": data["institute_id"]})
+        if inst:
+            data["institute_name"] = inst["name"]
+        else:
+            data["institute_id"] = None
+            data["institute_name"] = ""
+    else:
+        data["institute_id"] = None
+        data["institute_name"] = ""
+    doc = {"_id": str(uuid.uuid4()), **data, "created_at": iso(now_utc())}
     await db.batches.insert_one(doc)
     return clean(doc)
 
@@ -1566,6 +1612,13 @@ async def get_batch(bid: str, user: dict = Depends(require_roles("admin", "staff
 @api.patch("/batches/{bid}")
 async def update_batch(bid: str, body: BatchUpdate, user: dict = Depends(require_roles("admin", "staff"))):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "institute_id" in updates:
+        if updates["institute_id"] and updates["institute_id"] != "none":
+            inst = await db.institutes.find_one({"_id": updates["institute_id"]})
+            updates["institute_name"] = inst["name"] if inst else ""
+        else:
+            updates["institute_id"] = None
+            updates["institute_name"] = ""
     if updates:
         await db.batches.update_one({"_id": bid}, {"$set": updates})
     doc = await db.batches.find_one({"_id": bid})
@@ -1577,6 +1630,37 @@ async def update_batch(bid: str, body: BatchUpdate, user: dict = Depends(require
 async def delete_batch(bid: str, user: dict = Depends(require_roles("admin"))):
     await db.batches.delete_one({"_id": bid})
     return {"ok": True}
+
+@api.get("/batches/{bid}/outcomes")
+async def get_batch_outcomes(bid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    batch = await db.batches.find_one({"_id": bid})
+    if not batch:
+        raise HTTPException(404, "Batch not found")
+    student_ids = batch.get("student_ids", [])
+    template = get_progress_template()
+    
+    # Fetch all student_progress for students in this batch
+    progress_docs = await db.student_progress.find({"student_id": {"$in": student_ids}}).to_list(None)
+    completed_by_student = {}
+    for doc in progress_docs:
+        sid = doc["student_id"]
+        completed_by_student[sid] = {o.get("text") for o in doc.get("outcomes", []) if o.get("completed")}
+    
+    total_students = len(student_ids)
+    outcomes = []
+    for t in template:
+        text = t["text"]
+        completed_sids = [sid for sid in student_ids if text in completed_by_student.get(sid, set())]
+        outcomes.append({
+            "id": t["id"],
+            "level": t["level"],
+            "module": t["module"],
+            "text": text,
+            "completed_count": len(completed_sids),
+            "total_students": total_students,
+            "completed_all": total_students > 0 and len(completed_sids) == total_students,
+        })
+    return {"batch_id": bid, "total_students": total_students, "outcomes": outcomes}
 
 @api.get("/batches/{bid}/attendance")
 async def get_batch_attendance(bid: str, target_date: str, user: dict = Depends(require_roles("admin", "staff"))):
@@ -1601,34 +1685,137 @@ async def get_batch_attendance(bid: str, target_date: str, user: dict = Depends(
 
 @api.post("/batches/{bid}/attendance")
 async def take_batch_attendance(bid: str, body: TakeAttendanceIn, user: dict = Depends(require_roles("admin", "staff"))):
-    """Marks all students in the batch as 'present' by default, except those listed in absent_ids or late_ids."""
+    """Marks all students in the batch as 'present' by default, except those listed in absent_ids or late_ids.
+    Automatically updates learning progress outcomes for all attending students."""
     batch = await db.batches.find_one({"_id": bid})
     if not batch:
         raise HTTPException(404, "Batch not found")
     absent = set(body.absent_ids)
     late = set(body.late_ids)
     student_ids = batch.get("student_ids", [])
+    
+    # 1. Determine topics to record
+    topics_list = []
+    if body.selected_outcome_texts:
+        topics_list.extend([t.strip() for t in body.selected_outcome_texts if t.strip()])
+    if body.custom_topics:
+        topics_list.extend([t.strip() for t in body.custom_topics if t.strip()])
+    
+    if topics_list:
+        combined_topic = ", ".join(topics_list)
+    else:
+        combined_topic = body.topic.strip()
+    
+    # 2. Record attendance
     saved = 0
+    attending_sids = []
     for sid in student_ids:
         if sid in absent:
             status = "absent"
         elif sid in late:
             status = "late"
+            attending_sids.append(sid)
         else:
             status = "present"
+            attending_sids.append(sid)
+            
         existing = await db.attendance.find_one({"student_id": sid, "date": body.date})
         if existing:
-            await db.attendance.update_one({"_id": existing["_id"]},
-                                           {"$set": {"status": status, "topic": body.topic, "batch_id": bid}})
+            await db.attendance.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"status": status, "topic": combined_topic, "batch_id": bid}}
+            )
         else:
             await db.attendance.insert_one({
-                "_id": str(uuid.uuid4()), "student_id": sid,
-                "date": body.date, "status": status,
-                "topic": body.topic, "batch_id": bid,
+                "_id": str(uuid.uuid4()),
+                "student_id": sid,
+                "date": body.date,
+                "status": status,
+                "topic": combined_topic,
+                "batch_id": bid,
                 "created_at": iso(now_utc()),
             })
         saved += 1
-    return {"ok": True, "count": saved, "date": body.date}
+        
+    # 3. Automatically update learning progress outcomes for students who attended
+    all_outcomes_to_complete = list(body.selected_outcome_texts or [])
+    if not all_outcomes_to_complete and not body.custom_topics and body.topic:
+        raw_topics = [t.strip() for t in body.topic.split(",") if t.strip()]
+        all_outcomes_to_complete.extend(raw_topics)
+        
+    custom_topics_to_add = list(body.custom_topics or [])
+    
+    if attending_sids and (all_outcomes_to_complete or custom_topics_to_add):
+        template = get_progress_template()
+        template_by_text = {t["text"]: t for t in template}
+        now_ts = iso(now_utc())
+        
+        for sid in attending_sids:
+            doc = await sync_student_progress(sid)
+            existing_outcomes = doc.get("outcomes", [])
+            existing_by_text = {o.get("text"): o for o in existing_outcomes}
+            modified = False
+            
+            # Mark selected learning progress outcomes as completed
+            for o_text in all_outcomes_to_complete:
+                if o_text in existing_by_text:
+                    item = existing_by_text[o_text]
+                    item["completed"] = True
+                    item["completed_date"] = body.date
+                    modified = True
+                elif o_text in template_by_text:
+                    tpl_item = template_by_text[o_text]
+                    new_item = {
+                        **tpl_item,
+                        "id": str(uuid.uuid4()),
+                        "completed": True,
+                        "completed_date": body.date
+                    }
+                    existing_outcomes.append(new_item)
+                    existing_by_text[o_text] = new_item
+                    modified = True
+                else:
+                    new_item = {
+                        "id": f"custom-{uuid.uuid4()}",
+                        "level": batch.get("level", "Batch Topics"),
+                        "module": "Class Topics",
+                        "text": o_text,
+                        "completed": True,
+                        "completed_date": body.date
+                    }
+                    existing_outcomes.append(new_item)
+                    existing_by_text[o_text] = new_item
+                    modified = True
+                    
+            # Add and complete custom topics
+            for c_text in custom_topics_to_add:
+                c_text = c_text.strip()
+                if not c_text:
+                    continue
+                if c_text in existing_by_text:
+                    existing_by_text[c_text]["completed"] = True
+                    existing_by_text[c_text]["completed_date"] = body.date
+                    modified = True
+                else:
+                    new_item = {
+                        "id": f"custom-{uuid.uuid4()}",
+                        "level": batch.get("level", "Batch Topics"),
+                        "module": "Class Topics",
+                        "text": c_text,
+                        "completed": True,
+                        "completed_date": body.date
+                    }
+                    existing_outcomes.append(new_item)
+                    existing_by_text[c_text] = new_item
+                    modified = True
+                    
+            if modified:
+                await db.student_progress.update_one(
+                    {"student_id": sid},
+                    {"$set": {"outcomes": existing_outcomes, "updated_at": now_ts}}
+                )
+                
+    return {"ok": True, "count": saved, "date": body.date, "topic": combined_topic}
 
 @api.get("/schedule/today")
 async def schedule_today(user: dict = Depends(require_roles("admin", "staff"))):
@@ -1770,7 +1957,7 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     if not inst:
         raise HTTPException(404, "Institute not found")
     students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
-    return [clean(s) for s in students]
+    return [redact_fee_fields(clean(s), user["role"]) for s in students]
 
 @api.post("/institutes/{iid}/students")
 async def assign_students_to_institute(iid: str, body: AssignStudentsIn, user: dict = Depends(require_roles("admin", "staff"))):

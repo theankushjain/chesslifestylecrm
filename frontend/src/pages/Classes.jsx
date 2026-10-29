@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronRight, Users, Clock } from "lucide-react";
+import { Plus, ChevronRight, Users, Clock, Building2, Filter } from "lucide-react";
 import { toast } from "sonner";
 
 export const DAYS = [
@@ -17,15 +17,32 @@ export const DAYS = [
 
 export default function Classes() {
   const [batches, setBatches] = useState([]);
+  const [institutes, setInstitutes] = useState([]);
+  const [selectedInstitute, setSelectedInstitute] = useState("all");
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
   const load = async () => {
-    const { data } = await api.get("/batches");
-    setBatches(data);
-    setLoading(false);
+    try {
+      const [bRes, iRes] = await Promise.all([
+        api.get("/batches"),
+        api.get("/institutes").catch(() => ({ data: [] })),
+      ]);
+      setBatches(bRes.data);
+      setInstitutes(iRes.data);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
+
+  const filteredBatches = batches.filter((b) => {
+    if (selectedInstitute === "all") return true;
+    if (selectedInstitute === "none") return !b.institute_id;
+    return b.institute_id === selectedInstitute;
+  });
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
@@ -35,26 +52,57 @@ export default function Classes() {
           <h1 className="text-4xl font-serif">Classes</h1>
           <p className="text-sm text-muted-foreground mt-1">Batches with weekly schedules. Students in a batch are marked present by default.</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="add-batch-btn" className="rounded-xl h-10">
-              <Plus className="w-4 h-4 mr-1.5" /> Add
-            </Button>
-          </DialogTrigger>
-          <BatchCreateDialog onSaved={() => { setOpen(false); load(); }} />
-        </Dialog>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Institute filter */}
+          {institutes.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-4 h-4 text-muted-foreground hidden sm:inline" />
+              <Select value={selectedInstitute} onValueChange={setSelectedInstitute}>
+                <SelectTrigger className="w-[190px] rounded-xl text-xs h-10">
+                  <SelectValue placeholder="Filter by Institution" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl max-h-64">
+                  <SelectItem value="all">All Institutions ({batches.length})</SelectItem>
+                  <SelectItem value="none">Independent / No Institution</SelectItem>
+                  {institutes.map((inst) => (
+                    <SelectItem key={inst.id} value={inst.id}>
+                      {inst.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="add-batch-btn" className="rounded-xl h-10">
+                <Plus className="w-4 h-4 mr-1.5" /> Add Class
+              </Button>
+            </DialogTrigger>
+            <BatchCreateDialog institutes={institutes} onSaved={() => { setOpen(false); load(); }} />
+          </Dialog>
+        </div>
       </div>
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="batches-list">
-          {batches.map((b) => (
+          {filteredBatches.map((b) => (
             <Link key={b.id} to={`/classes/${b.id}`} data-testid={`batch-card-${b.id}`}
               className="bg-white border border-border/40 shadow-sm rounded-xl p-5 hover:border-primary transition-colors group">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="label-over text-[9px]">{b.level}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="label-over text-[9px]">{b.level}</span>
+                    {b.institute_name && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                        <Building2 className="w-3 h-3" />
+                        {b.institute_name}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xl font-serif mt-0.5">{b.name}</div>
                   {b.coach && <div className="text-xs text-muted-foreground mt-1">Coach: {b.coach}</div>}
                 </div>
@@ -81,9 +129,11 @@ export default function Classes() {
               )}
             </Link>
           ))}
-          {batches.length === 0 && (
+          {filteredBatches.length === 0 && (
             <div className="col-span-full p-8 text-center text-sm text-muted-foreground bg-white border border-border/40 shadow-sm rounded-xl">
-              No batches yet. Create one to start scheduling classes.
+              {batches.length === 0
+                ? "No batches yet. Create one to start scheduling classes."
+                : "No batches found for the selected institution."}
             </div>
           )}
         </div>
@@ -92,13 +142,18 @@ export default function Classes() {
   );
 }
 
-function BatchCreateDialog({ onSaved }) {
-  const [form, setForm] = useState({ name: "", level: "Beginner", coach: "", notes: "" });
+function BatchCreateDialog({ institutes = [], onSaved }) {
+  const [form, setForm] = useState({ name: "", level: "Beginner", coach: "", notes: "", institute_id: "" });
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
     try {
-      await api.post("/batches", { ...form, student_ids: [], schedule: [] });
+      await api.post("/batches", {
+        ...form,
+        institute_id: form.institute_id || null,
+        student_ids: [],
+        schedule: []
+      });
       toast.success("Batch created — add students and schedule next");
       onSaved();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -112,6 +167,24 @@ function BatchCreateDialog({ onSaved }) {
           <Label className="text-xs uppercase tracking-widest">Batch name</Label>
           <Input data-testid="batch-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-xl" placeholder="e.g. Weekend Intermediate" />
         </div>
+
+        <div>
+          <Label className="text-xs uppercase tracking-widest">Institution (Optional)</Label>
+          <Select value={form.institute_id || "none"} onValueChange={(v) => setForm({ ...form, institute_id: v === "none" ? "" : v })}>
+            <SelectTrigger data-testid="batch-form-institute" className="rounded-xl">
+              <SelectValue placeholder="Map to institution (optional)..." />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl max-h-60">
+              <SelectItem value="none">No Institution (General Batch)</SelectItem>
+              {institutes.map((inst) => (
+                <SelectItem key={inst.id} value={inst.id}>
+                  {inst.name} {inst.type ? `(${inst.type})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs uppercase tracking-widest">Level</Label>

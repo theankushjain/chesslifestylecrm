@@ -80,3 +80,8 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+
+# Scratch & temporary artifacts
+Invoice - *.pdf
+extracted_img_*.png
+scratch_invoice_render.png
