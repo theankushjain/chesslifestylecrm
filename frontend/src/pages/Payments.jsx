@@ -35,6 +35,7 @@ import { exportToCSV } from "@/lib/export";
 import { MarkPaidDialog } from "@/components/crm/MarkPaidDialog";
 import { AddFeeDialog } from "@/components/crm/AddFeeDialog";
 import { GenerateFeesDialog } from "@/components/crm/GenerateFeesDialog";
+import { GenerateInvoiceDialog } from "@/components/crm/GenerateInvoiceDialog";
 
 export default function Payments() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ export default function Payments() {
   const [generateFeesOpen, setGenerateFeesOpen] = useState(false);
   const [paymentToMark, setPaymentToMark] = useState(null);
   const [addFeeOpen, setAddFeeOpen] = useState(false);
+  const [invoicePayment, setInvoicePayment] = useState(null);
 
   // Month selection state: 'all' or 'YYYY-MM'
   const now = useMemo(() => new Date(), []);
@@ -715,7 +717,20 @@ export default function Payments() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-center">
+                <div className="flex items-center gap-2 self-end sm:self-center flex-wrap justify-end">
+                  {/* Send Invoice Button for every student */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setInvoicePayment(p)}
+                    data-testid={`invoice-${p.id}`}
+                    className="rounded-xl h-8 text-xs font-medium border-border/60 hover:border-primary/50 hover:bg-primary/5 gap-1.5"
+                    title={`Send or generate invoice for ${s?.name || "student"}`}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    Send Invoice
+                  </Button>
+
                   {p.status === "paid" ? (
                     <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
                       <CheckCircle2 className="w-4 h-4" /> Paid {p.method ? `· ${p.method}` : ""}
@@ -800,6 +815,15 @@ export default function Payments() {
         onOpenChange={setGenerateFeesOpen}
         students={studentsList}
         onSuccess={load}
+      />
+
+      <GenerateInvoiceDialog
+        open={!!invoicePayment}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setInvoicePayment(null);
+        }}
+        student={students[invoicePayment?.student_id]}
+        payment={invoicePayment}
       />
     </div>
   );

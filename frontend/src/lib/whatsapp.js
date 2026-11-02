@@ -24,6 +24,21 @@ export function studentReminderMessage(student, unpaidPayment) {
   return `Hi ${to},\n\nThis is regarding ${student.name}'s classes at The Chess Lifestyle chess academy.\n\nBest regards.`;
 }
 
+export function studentInvoiceMessage(student, payment, invoiceNum = null, amount = null) {
+  const to = student?.parent_name || student?.name || "there";
+  const m = payment ? MONTHS[(payment.month || 1) - 1] : MONTHS[new Date().getMonth()];
+  const y = payment?.year || new Date().getFullYear();
+  const amt = amount !== null && amount !== undefined ? amount : (payment?.amount || student?.fee_amount || student?.monthly_fee || 0);
+  const invStr = invoiceNum ? ` (Invoice #${invoiceNum})` : "";
+  const isPaid = payment?.status === "paid";
+  
+  if (isPaid) {
+    return `Hi ${to},\n\nHere is the fee receipt/invoice for ${student?.name} for ${m} ${y}${invStr}.\n\nAmount Paid: ₹${amt.toLocaleString("en-IN")}\nStatus: Paid\nClasses: Monthly Chess Training\n\nThank you for choosing The Chess Lifestyle!\n\nBest regards,\nThe Chess Lifestyle`;
+  }
+  
+  return `Hi ${to},\n\nPlease find the fee invoice for ${student?.name} for ${m} ${y}${invStr}.\n\nTotal Due: ₹${amt.toLocaleString("en-IN")}\nStatus: Pending\nClasses: Monthly Chess Training\n\nKindly complete the payment at your earliest convenience.\n\nThank you,\nThe Chess Lifestyle`;
+}
+
 export function studentBirthdayMessage(student) {
   const to = student.parent_name || student.name || "there";
   const who = student.name || "your child";

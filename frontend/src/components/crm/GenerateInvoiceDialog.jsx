@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FileText, Pencil, BadgeIndianRupee } from "lucide-react";
+import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
+import { openWhatsapp, studentInvoiceMessage } from "@/lib/whatsapp";
 import { toast } from "sonner";
 import { generateInvoice, buildInvoiceNumber } from "@/lib/invoiceGenerator";
 
@@ -28,22 +30,31 @@ const MONTHS = [
  *   open            – boolean
  *   onOpenChange    – setter
  *   student         – student object from API (must have fee_amount / monthly_fee)
+ *   payment         – optional payment record from ledger (with amount, month, year, status)
  */
-export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
-  const now          = new Date();
-  const defaultFee   = student?.fee_amount || student?.monthly_fee || 0;
+export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = null }) {
+  const now = new Date();
+  const defaultFee = payment?.amount !== undefined ? payment.amount : (student?.fee_amount || student?.monthly_fee || 0);
 
   /* ── form state ── */
-  const [amountMode, setAmountMode]   = useState("default"); // "default" | "custom"
-  const [customAmt,  setCustomAmt]    = useState("");
-  const [description, setDescription] = useState("Monthly Chess Classes");
+  const [amountMode, setAmountMode] = useState("default"); // "default" | "custom"
+  const [customAmt, setCustomAmt] = useState("");
+  const [description, setDescription] = useState(
+    payment?.status === "paid" ? "Monthly Chess Classes (Fee Receipt)" : "Monthly Chess Classes"
+  );
 
-  const [qty,         setQty]         = useState(8);
-  const [invoiceDate, setInvoiceDate] = useState(now.toISOString().slice(0,10));
-  const [previewNum,  setPreviewNum]  = useState("");
+  const [qty, setQty] = useState(8);
+  const [invoiceDate, setInvoiceDate] = useState(
+    payment?.paid_date ? payment.paid_date.slice(0, 10) : now.toISOString().slice(0, 10)
+  );
+  const [previewNum, setPreviewNum] = useState("");
 
-  /* Auto-derive sub-description from qty + invoiceDate */
+  /* Auto-derive sub-description from qty + invoiceDate or payment */
   const derivedDescNotes = (() => {
+    if (payment?.month && payment?.year) {
+      const mLabel = MONTHS[payment.month - 1];
+      return `${qty} regular classes in ${mLabel} ${payment.year}`;
+    }
     const d = invoiceDate ? new Date(invoiceDate + "T12:00:00") : now;
     const mLabel = MONTHS[d.getMonth()];
     return `${qty} regular classes in ${mLabel} ${d.getFullYear()}`;
@@ -55,10 +66,10 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
   /* re-compute preview invoice number whenever date changes */
   useEffect(() => {
     if (invoiceDate) {
-      const d = new Date(invoiceDate + "T" + now.toTimeString().slice(0,8));
+      const d = new Date(invoiceDate + "T" + now.toTimeString().slice(0, 8));
       setPreviewNum(buildInvoiceNumber(d));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceDate]);
 
   /* reset on open */
@@ -66,155 +77,126 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
     if (open) {
       setAmountMode("default");
       setCustomAmt("");
-      setDescription("Monthly Chess Classes");
+      setDescription(payment?.status === "paid" ? "Monthly Chess Classes (Fee Receipt)" : "Monthly Chess Classes");
       setQty(8);
       setDescNotesOverride(null);
-      setInvoiceDate(now.toISOString().slice(0,10));
+      setInvoiceDate(payment?.paid_date ? payment.paid_date.slice(0, 10) : now.toISOString().slice(0, 10));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, payment]);
 
-  const effectiveAmount =
-    amountMode === "default" ? defaultFee : Number(customAmt) || 0;
+  const effectiveAmount = amountMode === "default" ? defaultFee : Number(customAmt) || 0;
 
-  const handleGenerate = () => {
+  const handleGenerate = (sendWhatsApp = false) => {
     if (!student) return;
     if (effectiveAmount <= 0) {
       toast.error("Invoice amount must be greater than 0");
       return;
     }
 
-    const date    = invoiceDate
+    const date = invoiceDate
       ? new Date(invoiceDate + "T" + new Date().toTimeString().slice(0, 8))
       : new Date();
 
     const invNum = generateInvoice({
       student,
-      amount:      effectiveAmount,
+      amount: effectiveAmount,
       description,
       descNotes,
-      qty:         Number(qty) || 1,
+      qty: Number(qty) || 1,
       invoiceDate: date,
     });
 
     if (invNum) {
-      toast.success(`Invoice ${invNum} opened in new tab`);
+      if (sendWhatsApp) {
+        const phone = student.parent_phone || student.phone;
+        if (phone) {
+          openWhatsapp(phone, studentInvoiceMessage(student, payment, invNum, effectiveAmount));
+          toast.success(`Invoice ${invNum} generated & WhatsApp message prepared!`);
+        } else {
+          toast.warning(`Invoice ${invNum} generated, but no phone number found for student`);
+        }
+      } else {
+        toast.success(`Invoice ${invNum} opened in new tab`);
+      }
       onOpenChange(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="rounded-xl max-w-md"
-        data-testid="generate-invoice-dialog"
-      >
+      <DialogContent className="rounded-2xl max-w-md shadow-2xl" data-testid="generate-invoice-dialog">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <FileText className="w-5 h-5" />
             </span>
-            Generate Invoice
+            {payment?.status === "paid" ? "Generate Paid Receipt / Invoice" : "Generate Fee Invoice"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Create a printable invoice for{" "}
-            <span className="font-semibold text-foreground">
-              {student?.name}
-            </span>
-            . The invoice number is based on today's date &amp; time.
+            Create and send a branded invoice for{" "}
+            <span className="font-semibold text-foreground">{student?.name}</span>
+            {payment?.month && payment?.year ? ` for ${MONTHS[payment.month - 1]} ${payment.year}` : ""}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="space-y-4 py-2">
           {/* Invoice number preview */}
           <div className="flex items-center gap-2 bg-muted/50 border border-border/40 rounded-xl px-4 py-2.5">
             <BadgeIndianRupee className="w-4 h-4 text-muted-foreground shrink-0" />
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Invoice Number
-              </div>
-              <div className="font-mono text-sm font-semibold text-foreground">
-                {previewNum}
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Invoice Number</div>
+              <div className="font-mono text-sm font-semibold text-foreground">{previewNum}</div>
             </div>
           </div>
 
-          {/* Invoice date */}
-          <div>
-            <Label className="text-xs uppercase tracking-widest font-semibold mb-1.5 block">
-              Invoice Date
-            </Label>
-            <Input
-              type="date"
-              value={invoiceDate}
-              onChange={(e) => setInvoiceDate(e.target.value)}
-              className="rounded-xl"
-            />
-          </div>
-
           {/* Amount selector */}
-          <div>
-            <Label className="text-xs uppercase tracking-widest font-semibold mb-2 block">
-              Fee Amount
-            </Label>
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Amount</Label>
             <RadioGroup
               value={amountMode}
               onValueChange={setAmountMode}
-              className="space-y-2"
+              className="grid grid-cols-2 gap-2"
             >
-              {/* Default fee */}
               <label
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                htmlFor="r-default"
+                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
                   amountMode === "default"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-muted/40"
+                    ? "border-primary bg-primary/5 text-primary font-medium"
+                    : "border-border/60 hover:bg-muted/50 text-foreground"
                 }`}
               >
-                <RadioGroupItem value="default" id="inv-amt-default" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">
-                    Default fee
-                    <span className="ml-2 font-mono text-primary font-semibold">
-                      ₹{defaultFee.toLocaleString("en-IN")}
-                    </span>
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      /{student?.fee_type === "per_class" ? "class" : "month"}
-                    </span>
+                <RadioGroupItem value="default" id="r-default" />
+                <div className="text-xs">
+                  <div className="font-semibold">
+                    {payment?.amount !== undefined ? "Fee Amount" : "Monthly Fee"}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Use the student's registered fee amount
+                  <div className="text-[11px] text-muted-foreground">
+                    ₹{defaultFee.toLocaleString("en-IN")}
                   </div>
                 </div>
               </label>
 
-              {/* Custom amount */}
               <label
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                htmlFor="r-custom"
+                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
                   amountMode === "custom"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-muted/40"
+                    ? "border-primary bg-primary/5 text-primary font-medium"
+                    : "border-border/60 hover:bg-muted/50 text-foreground"
                 }`}
               >
-                <RadioGroupItem value="custom" id="inv-amt-custom" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium flex items-center gap-1">
-                    <Pencil className="w-3 h-3" /> Custom amount
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Enter a specific amount for this invoice
-                  </div>
+                <RadioGroupItem value="custom" id="r-custom" />
+                <div className="text-xs">
+                  <div className="font-semibold">Custom Amount</div>
+                  <div className="text-[11px] text-muted-foreground">Enter custom INR</div>
                 </div>
               </label>
             </RadioGroup>
 
             {amountMode === "custom" && (
-              <div className="mt-2">
-                <Label className="text-xs uppercase tracking-widest font-semibold mb-1 block">
-                  Amount (₹)
-                </Label>
+              <div className="mt-2 animate-in fade-in-50">
                 <Input
                   type="number"
-                  min={0}
                   placeholder="e.g. 3500"
                   value={customAmt}
                   onChange={(e) => setCustomAmt(e.target.value)}
@@ -226,24 +208,31 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
           </div>
 
           {/* Description */}
-          <div>
-            <Label className="text-xs uppercase tracking-widest font-semibold mb-1.5 block">
-              Description
-            </Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Description</Label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="rounded-xl"
-              placeholder="Monthly Chess Classes"
+              placeholder="e.g. Monthly Chess Classes"
+            />
+          </div>
+
+          {/* Date */}
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Invoice Date</Label>
+            <Input
+              type="date"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              className="rounded-xl"
             />
           </div>
 
           {/* Qty + Notes row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs uppercase tracking-widest font-semibold mb-1.5 block">
-                Quantity
-              </Label>
+              <Label className="text-xs uppercase tracking-widest font-semibold text-muted-foreground mb-1 block">Quantity</Label>
               <Input
                 type="number"
                 min={1}
@@ -256,9 +245,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
               />
             </div>
             <div>
-              <Label className="text-xs uppercase tracking-widest font-semibold mb-1.5 block">
-                Sub-description
-              </Label>
+              <Label className="text-xs uppercase tracking-widest font-semibold text-muted-foreground mb-1 block">Sub-description</Label>
               <Input
                 value={descNotes}
                 onChange={(e) => setDescNotesOverride(e.target.value)}
@@ -270,30 +257,42 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student }) {
 
           {/* Total preview */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total Due</span>
+            <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+              {payment?.status === "paid" ? "Paid Total" : "Total Due"}
+            </span>
             <span className="text-xl font-serif font-bold text-primary">
               ₹{effectiveAmount.toLocaleString("en-IN")}
             </span>
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            className="rounded-xl"
-            onClick={() => onOpenChange(false)}
-          >
+        <DialogFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2">
+          <Button variant="ghost" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            className="rounded-xl"
-            onClick={handleGenerate}
-            disabled={effectiveAmount <= 0}
-            data-testid="generate-invoice-btn"
-          >
-            <FileText className="w-4 h-4 mr-1.5" />
-            Generate Invoice
-          </Button>
+          <div className="flex items-center gap-2">
+            {(student?.parent_phone || student?.phone) && (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-[#25D366]/50 text-[#128C7E] hover:bg-[#25D366]/10 font-medium text-xs h-9"
+                onClick={() => handleGenerate(true)}
+                disabled={effectiveAmount <= 0}
+              >
+                <WhatsappIcon className="w-3.5 h-3.5 mr-1.5" />
+                Send via WhatsApp
+              </Button>
+            )}
+            <Button
+              className="rounded-xl text-xs h-9"
+              onClick={() => handleGenerate(false)}
+              disabled={effectiveAmount <= 0}
+              data-testid="generate-invoice-btn"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />
+              Print / PDF
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
