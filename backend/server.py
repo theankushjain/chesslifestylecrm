@@ -1112,7 +1112,7 @@ async def delete_attendance(student_id: str, date: str, user: dict = Depends(req
 
 
 @api.get("/payments")
-async def list_payments(student_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def list_payments(student_id: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, user: dict = Depends(get_current_user)):
     if user["role"] == "staff":
         return []
     q = {}
@@ -1122,7 +1122,11 @@ async def list_payments(student_id: Optional[str] = None, user: dict = Depends(g
         q["student_id"] = sid
     elif student_id:
         q["student_id"] = student_id
-    docs = await db.payments.find(q).sort([("year", -1), ("month", -1)]).to_list(500)
+    if year:
+        q["year"] = year
+    if month:
+        q["month"] = month
+    docs = await db.payments.find(q).sort([("year", -1), ("month", -1)]).to_list(10000)
     return [clean(d) for d in docs]
 
 @api.post("/payments")
@@ -2194,6 +2198,13 @@ async def tally_summary(year: Optional[int] = None, user: dict = Depends(require
     
     total_income = payment_revenue + manual_income
     net_profit = total_income - total_expense
+
+    # Category breakdown for expenses in selected year
+    category_breakdown = {}
+    for t in tx_docs_year:
+        if t.get("type") == "expense":
+            cat = t.get("category", "Other")
+            category_breakdown[cat] = category_breakdown.get(cat, 0) + t.get("amount", 0)
     
     # Calculate founder balances from ALL transactions
     founder_balances = {}
@@ -2209,6 +2220,17 @@ async def tally_summary(year: Optional[int] = None, user: dict = Depends(require
                 
     for f in founder_balances:
         founder_balances[f]["pending"] = founder_balances[f]["invested"] - founder_balances[f]["repaid"]
+
+    # Distinct years available from payments and transactions
+    years_set = {date.today().year, y}
+    distinct_pm_years = await db.payments.distinct("year")
+    if distinct_pm_years:
+        years_set.update([int(yr) for yr in distinct_pm_years if yr])
+    for t in tx_docs_all:
+        d_str = t.get("date", "")
+        if len(d_str) >= 4 and d_str[:4].isdigit():
+            years_set.add(int(d_str[:4]))
+    available_years = sorted(list(years_set), reverse=True)
     
     monthly_data = []
     for month in range(1, 13):
@@ -2220,15 +2242,21 @@ async def tally_summary(year: Optional[int] = None, user: dict = Depends(require
         monthly_data.append({
             "month": month,
             "income": m_payments + m_inc,
+            "fees_income": m_payments,
+            "manual_income": m_inc,
             "expense": m_exp,
             "profit": (m_payments + m_inc) - m_exp
         })
         
     return {
         "year": y,
+        "available_years": available_years,
         "total_income": total_income,
+        "payment_revenue": payment_revenue,
+        "manual_income": manual_income,
         "total_expense": total_expense,
         "net_profit": net_profit,
+        "category_breakdown": category_breakdown,
         "monthly_data": monthly_data,
         "founder_balances": founder_balances
     }
