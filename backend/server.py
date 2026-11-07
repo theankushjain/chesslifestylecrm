@@ -302,12 +302,14 @@ class UserIn(BaseModel):
     password: str
     role: str
     linked_student_id: Optional[str] = None
+    linked_institute_id: Optional[str] = None
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     role: Optional[str] = None
     linked_student_id: Optional[str] = None
+    linked_institute_id: Optional[str] = None
     password: Optional[str] = None
 
 class ProfileUpdate(BaseModel):
@@ -969,6 +971,10 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
         sid = user.get("linked_student_id")
         if not sid: return []
         docs = await db.students.find({"_id": sid}).to_list(1)
+    elif user["role"] == "institute":
+        iid = user.get("linked_institute_id")
+        if not iid: return []
+        docs = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
     else:
         q = {}
         if institute_id:
@@ -1002,6 +1008,8 @@ async def get_student(sid: str, user: dict = Depends(get_current_user)):
     doc = await db.students.find_one({"_id": sid})
     if not doc:
         raise HTTPException(404, "Not found")
+    if user["role"] == "institute" and doc.get("institute_id") != user.get("linked_institute_id"):
+        raise HTTPException(403, "Access denied")
     return redact_fee_fields(clean(doc), user["role"])
 
 @api.patch("/students/{sid}")
@@ -1073,6 +1081,16 @@ async def list_attendance(
         sid = user.get("linked_student_id")
         if not sid: return []
         q["student_id"] = sid
+    elif user["role"] == "institute":
+        iid = user.get("linked_institute_id")
+        if not iid: return []
+        inst_students = await db.students.find({"institute_id": iid}, {"_id": 1}).to_list(1000)
+        sids = [s["_id"] for s in inst_students]
+        if not sids: return []
+        if student_id and student_id in sids:
+            q["student_id"] = student_id
+        else:
+            q["student_id"] = {"$in": sids}
     elif student_id:
         q["student_id"] = student_id
         
@@ -1120,6 +1138,16 @@ async def list_payments(student_id: Optional[str] = None, year: Optional[int] = 
         sid = user.get("linked_student_id")
         if not sid: return []
         q["student_id"] = sid
+    elif user["role"] == "institute":
+        iid = user.get("linked_institute_id")
+        if not iid: return []
+        inst_students = await db.students.find({"institute_id": iid}, {"_id": 1}).to_list(1000)
+        sids = [s["_id"] for s in inst_students]
+        if not sids: return []
+        if student_id and student_id in sids:
+            q["student_id"] = student_id
+        else:
+            q["student_id"] = {"$in": sids}
     elif student_id:
         q["student_id"] = student_id
     if year:
@@ -1579,9 +1607,15 @@ def today_day_key() -> str:
 
 
 @api.get("/batches")
-async def list_batches(institute_id: Optional[str] = None, user: dict = Depends(require_roles("admin", "staff"))):
+async def list_batches(institute_id: Optional[str] = None, user: dict = Depends(require_roles("admin", "staff", "institute"))):
     q = {}
-    if institute_id:
+    if user["role"] == "institute":
+        iid = user.get("linked_institute_id")
+        if iid:
+            q["institute_id"] = iid
+        else:
+            return []
+    elif institute_id:
         if institute_id == "unassigned":
             q["$or"] = [{"institute_id": None}, {"institute_id": ""}, {"institute_id": {"$exists": False}}]
         else:
@@ -1607,10 +1641,12 @@ async def create_batch(body: BatchIn, user: dict = Depends(require_roles("admin"
     return clean(doc)
 
 @api.get("/batches/{bid}")
-async def get_batch(bid: str, user: dict = Depends(require_roles("admin", "staff"))):
+async def get_batch(bid: str, user: dict = Depends(require_roles("admin", "staff", "institute"))):
     doc = await db.batches.find_one({"_id": bid})
     if not doc:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, "Batch not found")
+    if user["role"] == "institute" and doc.get("institute_id") != user.get("linked_institute_id"):
+        raise HTTPException(403, "Access denied")
     return clean(doc)
 
 @api.patch("/batches/{bid}")
@@ -1889,8 +1925,11 @@ async def seed_institutes():
 
 
 @api.get("/institutes")
-async def list_institutes(user: dict = Depends(require_roles("admin", "staff"))):
-    institutes = await db.institutes.find().sort("name", 1).to_list(500)
+async def list_institutes(user: dict = Depends(require_roles("admin", "staff", "institute"))):
+    if user["role"] == "institute" and user.get("linked_institute_id"):
+        institutes = await db.institutes.find({"_id": user["linked_institute_id"]}).to_list(1)
+    else:
+        institutes = await db.institutes.find().sort("name", 1).to_list(500)
     counts = await db.students.aggregate([
         {"$match": {"institute_id": {"$exists": True, "$ne": None, "$ne": ""}}},
         {"$group": {"_id": "$institute_id", "count": {"$sum": 1}}}
@@ -1918,7 +1957,9 @@ async def create_institute(body: InstituteIn, user: dict = Depends(require_roles
     return out
 
 @api.get("/institutes/{iid}")
-async def get_institute(iid: str, user: dict = Depends(require_roles("admin", "staff"))):
+async def get_institute(iid: str, user: dict = Depends(require_roles("admin", "staff", "institute"))):
+    if user["role"] == "institute" and user.get("linked_institute_id") and user.get("linked_institute_id") != iid:
+        raise HTTPException(403, "Access denied to this institution")
     doc = await db.institutes.find_one({"_id": iid})
     if not doc:
         raise HTTPException(404, "Institute not found")
@@ -1956,7 +1997,9 @@ async def delete_institute(iid: str, user: dict = Depends(require_roles("admin")
     return {"ok": True}
 
 @api.get("/institutes/{iid}/students")
-async def get_institute_students(iid: str, user: dict = Depends(require_roles("admin", "staff"))):
+async def get_institute_students(iid: str, user: dict = Depends(require_roles("admin", "staff", "institute"))):
+    if user["role"] == "institute" and user.get("linked_institute_id") and user.get("linked_institute_id") != iid:
+        raise HTTPException(403, "Access denied to this institution")
     inst = await db.institutes.find_one({"_id": iid})
     if not inst:
         raise HTTPException(404, "Institute not found")
@@ -2058,6 +2101,7 @@ async def create_user(body: UserIn, user: dict = Depends(require_roles("admin"))
         "password_hash": pwd_hash,
         "role": body.role,
         "linked_student_id": body.linked_student_id,
+        "linked_institute_id": body.linked_institute_id,
         "created_at": iso(now_utc())
     }
     await db.users.insert_one(doc)
@@ -2086,6 +2130,8 @@ async def delete_user(uid: str, user: dict = Depends(require_roles("admin"))):
 
 @api.get("/tasks")
 async def get_tasks(user: dict = Depends(get_current_user)):
+    if user["role"] == "institute":
+        return []
     if user["role"] == "admin":
         tasks = await db.tasks.find().sort("created_at", -1).to_list(1000)
     else:

@@ -171,7 +171,7 @@ export default function Students() {
           <h1 className="text-4xl font-serif">Students</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.role === "institute") && (
             <Button variant="outline" onClick={() => {
               const exportData = students.map(s => ({
                 Name: s.name,
@@ -200,14 +200,16 @@ export default function Students() {
             <Printer className="w-4 h-4 mr-1.5" /> Blank Form
           </Button>
           {user?.role === "admin" && <MonthlyProgressDialog />}
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="add-student-btn" className="rounded-xl h-10">
-                <Plus className="w-4 h-4 mr-1.5" /> Add
-              </Button>
-            </DialogTrigger>
-            <StudentDialog onSaved={() => { setOpen(false); load(); }} institutes={institutes} />
-          </Dialog>
+          {(user?.role === "admin" || user?.role === "staff") && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="add-student-btn" className="rounded-xl h-10">
+                  <Plus className="w-4 h-4 mr-1.5" /> Add
+                </Button>
+              </DialogTrigger>
+              <StudentDialog onSaved={() => { setOpen(false); load(); }} institutes={institutes} />
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -285,7 +287,7 @@ export default function Students() {
                 </div>
               </Link>
               <div className="flex items-center gap-2 shrink-0 px-4">
-                {user?.role === "admin" && (s.fee_amount || s.monthly_fee) ? (
+                {(user?.role === "admin" || user?.role === "institute") && (s.fee_amount || s.monthly_fee) ? (
                   <span className="text-xs font-mono hidden sm:inline">₹{s.fee_amount || s.monthly_fee}/{s.fee_type === "per_class" ? "class" : "mo"}</span>
                 ) : null}
                 {s.status === "active" ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Circle className="w-3.5 h-3.5 text-muted-foreground" />}

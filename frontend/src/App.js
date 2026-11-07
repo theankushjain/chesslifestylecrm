@@ -32,7 +32,13 @@ const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={user.role === "student" ? "/portal" : "/"} replace />;
+  if (roles && !roles.includes(user.role)) {
+    if (user.role === "student") return <Navigate to="/portal" replace />;
+    if (user.role === "institute") {
+      return <Navigate to={user.linked_institute_id ? `/institutes/${user.linked_institute_id}` : "/institutes"} replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
   return children;
 };
 
@@ -40,6 +46,9 @@ const RoleHome = () => {
   const { user } = useAuth();
   if (user.role === "student") return <Navigate to="/portal" replace />;
   if (user.role === "staff") return <Navigate to="/classes" replace />;
+  if (user.role === "institute") {
+    return <Navigate to={user.linked_institute_id ? `/institutes/${user.linked_institute_id}` : "/institutes"} replace />;
+  }
   return <Dashboard />;
 };
 
@@ -58,21 +67,21 @@ function App() {
             <Route path="/register" element={<RegistrationForm />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<RoleHome />} />
-              <Route path="students" element={<Protected roles={["admin", "staff"]}><Students /></Protected>} />
+              <Route path="students" element={<Protected roles={["admin", "staff", "institute"]}><Students /></Protected>} />
               <Route path="students/:id" element={<Protected><StudentDetail /></Protected>} />
-              <Route path="institutes" element={<Protected roles={["admin", "staff"]}><Institutes /></Protected>} />
-              <Route path="institutes/:id" element={<Protected roles={["admin", "staff"]}><InstituteDetail /></Protected>} />
+              <Route path="institutes" element={<Protected roles={["admin", "staff", "institute"]}><Institutes /></Protected>} />
+              <Route path="institutes/:id" element={<Protected roles={["admin", "staff", "institute"]}><InstituteDetail /></Protected>} />
               <Route path="leads" element={<Protected roles={["admin"]}><Leads /></Protected>} />
               <Route path="leads/:id" element={<Protected roles={["admin"]}><LeadDetail /></Protected>} />
-              <Route path="classes" element={<Protected roles={["admin","staff"]}><Classes /></Protected>} />
-              <Route path="classes/:id" element={<Protected roles={["admin","staff"]}><BatchDetail /></Protected>} />
-              <Route path="payments" element={<Protected roles={["admin"]}><Payments /></Protected>} />
+              <Route path="classes" element={<Protected roles={["admin","staff", "institute"]}><Classes /></Protected>} />
+              <Route path="classes/:id" element={<Protected roles={["admin","staff", "institute"]}><BatchDetail /></Protected>} />
+              <Route path="payments" element={<Protected roles={["admin", "institute"]}><Payments /></Protected>} />
               <Route path="tally" element={<Protected roles={["admin"]}><Tally /></Protected>} />
               <Route path="chat" element={<Protected roles={["admin"]}><Chatbot /></Protected>} />
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
-              <Route path="attendance" element={<Protected roles={["admin", "staff"]}><AttendanceReport /></Protected>} />
+              <Route path="attendance" element={<Protected roles={["admin", "staff", "institute"]}><AttendanceReport /></Protected>} />
               <Route path="feedback" element={<Protected roles={["admin"]}><FeedbackDashboard /></Protected>} />
-              <Route path="tasks" element={<Protected><Tasks /></Protected>} />
+              <Route path="tasks" element={<Protected roles={["admin", "staff", "student"]}><Tasks /></Protected>} />
               <Route path="portal" element={<Protected roles={["student"]}><StudentPortal /></Protected>} />
               <Route path="profile" element={<Protected><Profile /></Protected>} />
             </Route>

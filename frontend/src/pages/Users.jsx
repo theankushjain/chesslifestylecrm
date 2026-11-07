@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function Users() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
+  const [institutes, setInstitutes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
@@ -20,6 +21,7 @@ export default function Users() {
     email: "",
     password: "",
     role: "staff",
+    linked_institute_id: "",
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -30,7 +32,15 @@ export default function Users() {
 
   useEffect(() => {
     loadUsers();
+    loadInstitutes();
   }, []);
+
+  const loadInstitutes = async () => {
+    try {
+      const res = await api.get("/institutes");
+      setInstitutes(res.data);
+    } catch {}
+  };
 
   const loadUsers = async () => {
     try {
@@ -45,10 +55,18 @@ export default function Users() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    if (form.role === "institute" && !form.linked_institute_id) {
+      toast.error("Please select an institution for this representative.");
+      return;
+    }
     try {
-      await api.post("/users", form);
+      const payload = { ...form };
+      if (payload.role !== "institute") {
+        delete payload.linked_institute_id;
+      }
+      await api.post("/users", payload);
       toast.success("User created successfully");
-      setForm({ ...form, name: "", email: "", password: "" });
+      setForm({ ...form, name: "", email: "", password: "", linked_institute_id: "" });
       loadUsers();
     } catch (err) {
       toast.error(formatApiError(err));
@@ -57,7 +75,13 @@ export default function Users() {
 
   const startEdit = (u) => {
     setEditingId(u.id);
-    setEditForm({ name: u.name, email: u.email, role: u.role, password: "" });
+    setEditForm({
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      linked_institute_id: u.linked_institute_id || "",
+      password: "",
+    });
   };
 
   const handleSaveEdit = async (uid) => {
@@ -155,9 +179,30 @@ export default function Users() {
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
                     <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="institute">Institution Representative</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {form.role === "institute" && (
+                <div className="space-y-1.5 animate-in fade-in">
+                  <Label>Assigned Institution</Label>
+                  <Select
+                    value={form.linked_institute_id}
+                    onValueChange={(v) => setForm({ ...form, linked_institute_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Institution" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {institutes.map((inst) => (
+                        <SelectItem key={inst.id} value={inst.id}>
+                          {inst.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button type="submit" className="w-full">Create Account</Button>
             </form>
           </CardContent>
@@ -173,7 +218,7 @@ export default function Users() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Role & Access</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -195,18 +240,47 @@ export default function Users() {
                     </TableCell>
                     <TableCell>
                       {editingId === u.id ? (
-                        <Select value={editForm.role} onValueChange={(v) => setEditForm({...editForm, role: v})}>
-                          <SelectTrigger className="h-8 text-xs w-[110px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="student">Student</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-1.5">
+                          <Select value={editForm.role} onValueChange={(v) => setEditForm({...editForm, role: v})}>
+                            <SelectTrigger className="h-8 text-xs w-[140px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="staff">Staff</SelectItem>
+                              <SelectItem value="student">Student</SelectItem>
+                              <SelectItem value="institute">Institution Rep</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {editForm.role === "institute" && (
+                            <Select
+                              value={editForm.linked_institute_id}
+                              onValueChange={(v) => setEditForm({...editForm, linked_institute_id: v})}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[140px]">
+                                <SelectValue placeholder="Select Inst." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {institutes.map((inst) => (
+                                  <SelectItem key={inst.id} value={inst.id}>
+                                    {inst.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                       ) : (
-                        <span className="uppercase text-xs tracking-wider font-semibold text-muted-foreground">{u.role}</span>
+                        <div>
+                          <span className="uppercase text-xs tracking-wider font-semibold text-muted-foreground">
+                            {u.role === "institute" ? "Institution Rep" : u.role}
+                          </span>
+                          {u.role === "institute" && (
+                            <p className="text-xs text-primary font-medium mt-0.5">
+                              {institutes.find((i) => i.id === u.linked_institute_id)?.name || "No Inst. Linked"}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

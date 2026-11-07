@@ -7,12 +7,12 @@ import NotificationBell from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: "Home", icon: LayoutDashboard, testid: "nav-dashboard", roles: ["admin"] },
-  { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin", "staff"] },
-  { to: "/institutes", label: "Institutes", icon: Building2, testid: "nav-institutes", roles: ["admin", "staff"] },
-  { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff"] },
-  { to: "/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance", roles: ["admin", "staff"] },
+  { to: "/institutes", label: "Institutes", icon: Building2, testid: "nav-institutes", roles: ["admin", "staff", "institute"] },
+  { to: "/students", label: "Students", icon: UsersIcon, testid: "nav-students", roles: ["admin", "staff", "institute"] },
+  { to: "/classes", label: "Classes", icon: CalendarDays, testid: "nav-classes", roles: ["admin", "staff", "institute"] },
+  { to: "/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance", roles: ["admin", "staff", "institute"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin"] },
-  { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin"] },
+  { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin", "institute"] },
   { to: "/tasks", label: "To-Do", icon: CheckSquare, testid: "nav-tasks", roles: ["admin", "staff", "student"] },
   { to: "/tally", label: "Tally", icon: TrendingUp, testid: "nav-tally", roles: ["admin"] },
   { to: "/feedback", label: "Feedback", icon: MessageSquare, testid: "nav-feedback", roles: ["admin"] },
@@ -25,7 +25,16 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const items = NAV.filter((n) => n.roles.includes(user.role));
+  const items = NAV.filter((n) => n.roles.includes(user.role)).map((n) => {
+    if (user.role === "institute" && n.to === "/institutes" && user.linked_institute_id) {
+      return {
+        ...n,
+        to: `/institutes/${user.linked_institute_id}`,
+        label: "My Institution",
+      };
+    }
+    return n;
+  });
   
   const MAX_VISIBLE = 4;
   const visibleItems = items.length > MAX_VISIBLE ? items.slice(0, 3) : items;

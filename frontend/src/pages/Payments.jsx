@@ -335,8 +335,8 @@ export default function Payments() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Admin Download Reports Dropdown */}
-          {user?.role === "admin" && (
+          {/* Download Reports Dropdown */}
+          {(user?.role === "admin" || user?.role === "institute") && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="rounded-xl h-10 border-primary/20 hover:border-primary/40 text-foreground font-medium shadow-sm">
@@ -395,12 +395,16 @@ export default function Payments() {
             </DropdownMenu>
           )}
 
-          <Button onClick={() => setAddFeeOpen(true)} data-testid="add-fee-btn" className="rounded-xl h-10 bg-primary text-primary-foreground shadow-sm">
-            <Plus className="w-4 h-4 mr-1.5" /> Add Fee
-          </Button>
-          <Button variant="outline" onClick={() => setGenerateFeesOpen(true)} data-testid="generate-fees-btn" className="rounded-xl h-10 shadow-sm">
-            <Wand2 className="w-4 h-4 mr-1.5" /> Generate Month Fees
-          </Button>
+          {user?.role === "admin" && (
+            <>
+              <Button onClick={() => setAddFeeOpen(true)} data-testid="add-fee-btn" className="rounded-xl h-10 bg-primary text-primary-foreground shadow-sm">
+                <Plus className="w-4 h-4 mr-1.5" /> Add Fee
+              </Button>
+              <Button variant="outline" onClick={() => setGenerateFeesOpen(true)} data-testid="generate-fees-btn" className="rounded-xl h-10 shadow-sm">
+                <Wand2 className="w-4 h-4 mr-1.5" /> Generate Month Fees
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -501,7 +505,7 @@ export default function Payments() {
                 Comparison of billed fees, actual earnings collected, and pending amounts across each recorded month.
               </p>
             </div>
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || user?.role === "institute") && (
               <Button variant="outline" size="sm" onClick={handleExportAllMonthsSummaryPDF} className="h-8 text-xs rounded-lg shrink-0">
                 <FileText className="w-3.5 h-3.5 mr-1" /> Export Table
               </Button>
@@ -766,13 +770,15 @@ export default function Payments() {
                       )}
                     </>
                   )}
-                  <button
-                    onClick={() => deletePayment(p.id)}
-                    className="p-2 ml-1 text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
-                    title="Delete Payment"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {user?.role === "admin" && (
+                    <button
+                      onClick={() => deletePayment(p.id)}
+                      className="p-2 ml-1 text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
+                      title="Delete Payment"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

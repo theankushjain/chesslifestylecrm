@@ -123,7 +123,7 @@ export default function StudentDetail() {
             <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
               <div>{student.phone || "no phone"}</div>
               <div>Parent: {student.parent_name || "—"} · {student.parent_phone || "—"}</div>
-              {user?.role === "admin" && (student.fee_amount || student.monthly_fee) ? (
+              {(user?.role === "admin" || user?.role === "institute") && (student.fee_amount || student.monthly_fee) ? (
                 <div className="bg-secondary/30 p-4 mt-2 border border-border/40 rounded-xl space-y-3">
                   <div className="label-over text-muted-foreground">Fee Details</div>
                   <div className="font-mono">₹{student.fee_amount || student.monthly_fee}/{student.fee_type === "per_class" ? "class" : "month"}</div>
@@ -267,8 +267,8 @@ export default function StudentDetail() {
             </div>
           </div>
 
-          {/* Payments - only visible to admin */}
-          {user?.role === "admin" && (
+          {/* Payments - visible to admin and institute */}
+          {(user?.role === "admin" || user?.role === "institute") && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="label-over !mb-0">Fees</div>

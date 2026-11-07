@@ -44,6 +44,7 @@ import {
   ClipboardList,
   Clock,
   Calendar,
+  IndianRupee,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -63,6 +64,7 @@ export default function InstituteDetail() {
   const [allInstitutes, setAllInstitutes] = useState([]);
   const [students, setStudents] = useState([]);
   const [batches, setBatches] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -76,16 +78,20 @@ export default function InstituteDetail() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [instRes, allInstRes, stuRes, batchRes] = await Promise.all([
+      const [instRes, allInstRes, stuRes, batchRes, payRes] = await Promise.all([
         api.get(`/institutes/${id}`),
-        api.get("/institutes"),
+        user?.role === "institute" ? Promise.resolve({ data: [] }) : api.get("/institutes").catch(() => ({ data: [] })),
         api.get(`/institutes/${id}/students`),
         api.get("/batches", { params: { institute_id: id } }).catch(() => ({ data: [] })),
+        (user?.role === "admin" || user?.role === "institute")
+          ? api.get("/payments").catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
       ]);
       setInstitute(instRes.data);
-      setAllInstitutes(allInstRes.data);
-      setStudents(stuRes.data);
+      setAllInstitutes(allInstRes.data || []);
+      setStudents(stuRes.data || []);
       setBatches(batchRes.data || []);
+      setPayments(payRes.data || []);
     } catch (e) {
       toast.error(formatApiError(e));
     } finally {
@@ -122,7 +128,7 @@ export default function InstituteDetail() {
       "Phone": s.phone || "",
       "Parent Name": s.parent_name || "",
       "Parent Phone": s.parent_phone || "",
-      ...(user?.role === "admin" ? {
+      ...((user?.role === "admin" || user?.role === "institute") ? {
         "Fee Type": s.fee_type || "monthly",
         "Fee Amount": s.fee_amount || s.monthly_fee || 0,
       } : {}),
@@ -145,6 +151,21 @@ export default function InstituteDetail() {
     return matchesSearch && matchesLevel && matchesStatus;
   });
 
+  const studentIdSet = new Set(students.map((s) => s.id));
+  const institutePayments = payments.filter((p) => studentIdSet.has(p.student_id));
+  const totalMonthlyFee = students.reduce(
+    (sum, s) => sum + (Number(s.fee_amount || s.monthly_fee) || 0),
+    0
+  );
+  const totalCollected = institutePayments
+    .filter((p) => p.status === "paid")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalPending = institutePayments
+    .filter((p) => p.status !== "paid")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const paidCount = institutePayments.filter((p) => p.status === "paid").length;
+  const pendingCount = institutePayments.filter((p) => p.status !== "paid").length;
+
   if (loading && !institute) {
     return <div className="p-8 text-center text-sm text-muted-foreground">Loading institute details...</div>;
   }
@@ -165,15 +186,19 @@ export default function InstituteDetail() {
       {/* Top Bar: Back button and Institute Quick-Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <Link
-            to="/institutes"
-            className="p-2 border border-border/60 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title="Back to Institutes"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
+          {user?.role !== "institute" && (
+            <Link
+              to="/institutes"
+              className="p-2 border border-border/60 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              title="Back to Institutes"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          )}
           <div>
-            <div className="label-over text-[9px]">Institute Roster</div>
+            <div className="label-over text-[9px]">
+              {user?.role === "institute" ? "My Institution" : "Institute Roster"}
+            </div>
             <h1 className="text-3xl sm:text-4xl font-serif font-bold text-foreground">
               {institute.name}
             </h1>
@@ -181,30 +206,32 @@ export default function InstituteDetail() {
         </div>
 
         {/* Quick Switcher dropdown right at top */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold hidden md:inline">
-            Switch Institute:
-          </span>
-          <Select
-            value={id}
-            onValueChange={(newId) => navigate(`/institutes/${newId}`)}
-          >
-            <SelectTrigger
-              className="w-[220px] rounded-xl bg-white shadow-sm border-primary/30 font-medium"
-              data-testid="institute-switcher-select"
+        {user?.role !== "institute" && allInstitutes.length > 1 && (
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold hidden md:inline">
+              Switch Institute:
+            </span>
+            <Select
+              value={id}
+              onValueChange={(newId) => navigate(`/institutes/${newId}`)}
             >
-              <Building2 className="w-4 h-4 mr-1 text-primary shrink-0" />
-              <SelectValue placeholder="Switch Institute" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {allInstitutes.map((inst) => (
-                <SelectItem key={inst.id} value={inst.id}>
-                  {inst.name} ({inst.student_count || 0})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              <SelectTrigger
+                className="w-[220px] rounded-xl bg-white shadow-sm border-primary/30 font-medium"
+                data-testid="institute-switcher-select"
+              >
+                <Building2 className="w-4 h-4 mr-1 text-primary shrink-0" />
+                <SelectValue placeholder="Switch Institute" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {allInstitutes.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>
+                    {inst.name} ({inst.student_count || 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Institute Overview Card */}
@@ -313,6 +340,84 @@ export default function InstituteDetail() {
         )}
       </div>
 
+      {/* Financial & Fee Summary (Visible to Admin and Institute Rep) */}
+      {(user?.role === "admin" || user?.role === "institute") && (
+        <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
+            <div>
+              <h2 className="text-xl font-serif font-bold flex items-center gap-2">
+                <IndianRupee className="w-5 h-5 text-emerald-600" />
+                <span>Fees & Financial Overview</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Financial summary of enrolled students, monthly tuition, and payment statuses for {institute.name}.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/payments")}
+              className="rounded-xl h-8 text-xs font-medium border-primary/30 text-primary hover:bg-primary/5"
+            >
+              View Full Fee Ledger & Reports
+              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                Total Monthly Projected
+              </div>
+              <div className="text-2xl font-serif font-bold text-foreground mt-1">
+                ₹{totalMonthlyFee.toLocaleString("en-IN")}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                From {students.length} enrolled student{students.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-100">
+              <div className="text-[10px] uppercase font-semibold text-emerald-800 tracking-wider">
+                Total Fees Collected
+              </div>
+              <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">
+                ₹{totalCollected.toLocaleString("en-IN")}
+              </div>
+              <div className="text-[11px] text-emerald-600/90 mt-0.5">
+                {paidCount} recorded transaction{paidCount !== 1 ? "s" : ""} paid
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-100">
+              <div className="text-[10px] uppercase font-semibold text-amber-800 tracking-wider">
+                Pending / Outstanding Dues
+              </div>
+              <div className="text-2xl font-serif font-bold text-amber-700 mt-1">
+                ₹{totalPending.toLocaleString("en-IN")}
+              </div>
+              <div className="text-[11px] text-amber-600/90 mt-0.5">
+                {pendingCount} pending payment record{pendingCount !== 1 ? "s" : ""}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="text-[10px] uppercase font-semibold text-primary tracking-wider">
+                Collection Rate
+              </div>
+              <div className="text-2xl font-serif font-bold text-primary mt-1">
+                {totalCollected + totalPending > 0
+                  ? `${Math.round((totalCollected / (totalCollected + totalPending)) * 100)}%`
+                  : totalMonthlyFee > 0 ? "100%" : "N/A"}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Of total billed dues
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mapped Classes / Batches Section */}
       <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -328,14 +433,16 @@ export default function InstituteDetail() {
               Scheduled classes mapped directly to {institute.name}.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/classes")}
-            className="rounded-xl h-8 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
-          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/classes")}
+              className="rounded-xl h-8 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
+            </Button>
+          )}
         </div>
 
         {batches.length === 0 ? (
@@ -460,10 +567,10 @@ export default function InstituteDetail() {
       ) : (
         <div className="bg-white border border-border/40 rounded-xl shadow-sm overflow-hidden divide-y divide-border/60">
           <div className="hidden md:grid grid-cols-12 gap-3 p-3.5 bg-muted/30 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <div className={user?.role === "admin" ? "col-span-4" : "col-span-5"}>Student</div>
+            <div className={(user?.role === "admin" || user?.role === "institute") ? "col-span-4" : "col-span-5"}>Student</div>
             <div className="col-span-2">Level & Grade</div>
-            <div className={user?.role === "admin" ? "col-span-3" : "col-span-4"}>Parent & Contact</div>
-            {user?.role === "admin" && <div className="col-span-2">Fees</div>}
+            <div className={(user?.role === "admin" || user?.role === "institute") ? "col-span-3" : "col-span-4"}>Parent & Contact</div>
+            {(user?.role === "admin" || user?.role === "institute") && <div className="col-span-2">Fees</div>}
             <div className="col-span-1 text-right">Actions</div>
           </div>
 
@@ -476,7 +583,7 @@ export default function InstituteDetail() {
                 data-testid={`student-row-${s.id}`}
               >
                 {/* Name & Avatar */}
-                <div className={`${user?.role === "admin" ? "col-span-4" : "col-span-5"} flex items-center gap-3 w-full`}>
+                <div className={`${(user?.role === "admin" || user?.role === "institute") ? "col-span-4" : "col-span-5"} flex items-center gap-3 w-full`}>
                   <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-serif font-bold text-sm shrink-0">
                     {s.name[0]}
                   </div>
@@ -508,7 +615,7 @@ export default function InstituteDetail() {
                 </div>
 
                 {/* Parent contact */}
-                <div className={`${user?.role === "admin" ? "col-span-3" : "col-span-4"} text-xs`}>
+                <div className={`${(user?.role === "admin" || user?.role === "institute") ? "col-span-3" : "col-span-4"} text-xs`}>
                   <div className="text-foreground font-medium flex items-center gap-1.5">
                     <span>{s.parent_name || "Parent"}</span>
                     {parentContact && (
@@ -528,8 +635,8 @@ export default function InstituteDetail() {
                   )}
                 </div>
 
-                {/* Fees - visible only to admin */}
-                {user?.role === "admin" && (
+                {/* Fees - visible to admin and institute */}
+                {(user?.role === "admin" || user?.role === "institute") && (
                   <div className="col-span-2 text-xs">
                     <div className="font-mono font-medium text-foreground">
                       ₹{s.fee_amount || s.monthly_fee || 0}
