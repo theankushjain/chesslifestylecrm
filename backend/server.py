@@ -466,13 +466,32 @@ async def notify_unpaid_fees():
         count = len(unpaid)
         total_amount = sum(p.get("amount", 0) for p in unpaid)
         
-        # Convert unpaid students to "on hold"
+        # Only mark student inactive when fees for current month is not paid AND has not been marked present for last 7 days
         unpaid_student_ids = list(set([p["student_id"] for p in unpaid]))
         if unpaid_student_ids:
-            await db.students.update_many(
-                {"_id": {"$in": unpaid_student_ids}, "status": "active"},
-                {"$set": {"status": "on hold"}}
-            )
+            seven_days_ago = (today - timedelta(days=7)).isoformat()
+            recent_attendances = await db.attendance.find({
+                "student_id": {"$in": unpaid_student_ids},
+                "date": {"$gte": seven_days_ago},
+                "status": {"$in": ["present", "late"]}
+            }).to_list(None)
+            recently_present_sids = set(a["student_id"] for a in recent_attendances)
+
+            # Inactivate only unpaid students who were NOT marked present in the last 7 days
+            to_inactivate = [sid for sid in unpaid_student_ids if sid not in recently_present_sids]
+            if to_inactivate:
+                await db.students.update_many(
+                    {"_id": {"$in": to_inactivate}, "status": "active"},
+                    {"$set": {"status": "inactive", "updated_at": iso(now_utc())}}
+                )
+
+            # If a student was previously inactive or on hold but has attended in the last 7 days, restore them to active
+            to_restore = [sid for sid in unpaid_student_ids if sid in recently_present_sids]
+            if to_restore:
+                await db.students.update_many(
+                    {"_id": {"$in": to_restore}, "status": {"$in": ["on hold", "inactive"]}},
+                    {"$set": {"status": "active", "updated_at": iso(now_utc())}}
+                )
         
         admins = await db.users.find({"role": "admin"}).to_list(None)
         admin_ids = [a["_id"] for a in admins]
@@ -1304,7 +1323,7 @@ async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("ad
             
             if body.status == "paid":
                 student = await db.students.find_one({"_id": doc["student_id"]})
-                if student and student.get("status") == "on hold":
+                if student and student.get("status") in ["on hold", "inactive"]:
                     await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
                 student_name = student["name"] if student else "Unknown Student"
                 month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
@@ -1333,7 +1352,7 @@ async def create_payment(body: PaymentIn, user: dict = Depends(require_roles("ad
 
     if doc.get("status") == "paid":
         student = await db.students.find_one({"_id": doc["student_id"]})
-        if student and student.get("status") == "on hold":
+        if student and student.get("status") in ["on hold", "inactive"]:
             await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
         student_name = student["name"] if student else "Unknown Student"
         month_name = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][doc["month"]-1]
@@ -1443,7 +1462,7 @@ async def update_payment(pid: str, body: PaymentUpdate, user: dict = Depends(req
     # Sync with Tally if marked paid
     if was_unpaid and doc.get("status") == "paid":
         student = await db.students.find_one({"_id": doc["student_id"]})
-        if student and student.get("status") == "on hold":
+        if student and student.get("status") in ["on hold", "inactive"]:
             await db.students.update_one({"_id": student["_id"]}, {"$set": {"status": "active"}})
             
         student_name = student["name"] if student else "Unknown Student"
