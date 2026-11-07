@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, Circle, Cake, CalendarDays, Clock } from "lucide-react";
+import { 
+  AlertTriangle, Users, Target, IndianRupee, TrendingUp, PhoneCall, 
+  Circle, Cake, CalendarDays, Clock, CheckCircle2, Search, MessageCircle, ExternalLink,
+  Bell, BellOff, BellRing 
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { subscribeUserToPush } from "@/lib/push";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, BellRing } from "lucide-react";
 
 const SEVERITY = {
   high: { color: "border-l-destructive", label: "URGENT", tint: "text-destructive" },
@@ -27,6 +30,8 @@ export default function Dashboard() {
   const [todayClasses, setTodayClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notifState, setNotifState] = useState('Notification' in window ? Notification.permission : 'unsupported');
+  const [feeTab, setFeeTab] = useState("paid");
+  const [feeSearch, setFeeSearch] = useState("");
 
   const handleNotificationClick = async () => {
     if (!('Notification' in window)) return;
@@ -163,6 +168,149 @@ export default function Dashboard() {
             <StatCard icon={Target} label="Total leads" value={stats.total_leads} sub={`${stats.hot_leads} hot`} testid="stat-leads" />
             <StatCard icon={IndianRupee} label="Month revenue" value={`₹${stats.month_revenue.toLocaleString('en-IN')}`} testid="stat-revenue" />
             <StatCard icon={AlertTriangle} label="Unpaid this month" value={stats.unpaid_count} testid="stat-unpaid" />
+          </div>
+        </section>
+      )}
+
+      {/* Current Month Fee Collection Status */}
+      {stats && (
+        <section className="mb-8" data-testid="current-month-fees-section">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div>
+              <div className="label-over">Fee Collections · {stats.current_month_name} {stats.current_year}</div>
+              <h2 className="text-xl font-serif">Current Month's Fees</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link to="/payments" className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground flex items-center gap-1">
+                View all payments <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-white border border-border/40 shadow-sm rounded-xl p-4 md:p-6">
+            {/* Tabs & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+              <div className="inline-flex rounded-lg bg-secondary/60 p-1 border border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setFeeTab("paid")}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    feeTab === "paid" 
+                      ? "bg-white text-emerald-800 shadow-sm font-semibold" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Received ({stats.paid_count || 0})</span>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-mono">
+                    ₹{(stats.month_revenue || 0).toLocaleString("en-IN")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeeTab("unpaid")}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    feeTab === "unpaid" 
+                      ? "bg-white text-rose-800 shadow-sm font-semibold" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Pending ({stats.unpaid_count || 0})</span>
+                  <span className="text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded font-mono">
+                    ₹{(stats.unpaid_amount || 0).toLocaleString("en-IN")}
+                  </span>
+                </button>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Filter student or institute..."
+                  value={feeSearch}
+                  onChange={(e) => setFeeSearch(e.target.value)}
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-border/50 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            {/* Students list */}
+            {(() => {
+              const list = feeTab === "paid" ? (stats.paid_students || []) : (stats.unpaid_students || []);
+              const filtered = list.filter((s) => {
+                if (!feeSearch) return true;
+                const q = feeSearch.toLowerCase();
+                return (s.name || "").toLowerCase().includes(q) || (s.institute_name || "").toLowerCase().includes(q);
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                    {feeTab === "paid" 
+                      ? (stats.paid_count === 0 ? `No fees received yet for ${stats.current_month_name}.` : "No matching paid students found.")
+                      : (stats.unpaid_count === 0 ? `All students have paid fees for ${stats.current_month_name}! 🎉` : "No matching pending students found.")}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="divide-y divide-border/30 max-h-80 overflow-y-auto pr-1">
+                  {filtered.map((s) => (
+                    <div key={s.student_id} className="py-2.5 flex items-center justify-between gap-3 hover:bg-secondary/20 px-2 rounded-lg transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {feeTab === "paid" ? (
+                          <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Link to={`/students/${s.student_id}`} className="font-medium text-sm hover:underline hover:text-primary truncate">
+                              {s.name}
+                            </Link>
+                            {s.institute_name && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border shrink-0">
+                                {s.institute_name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {feeTab === "paid" ? (
+                              <span>Paid {s.paid_date ? new Date(s.paid_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `in ${stats.current_month_name}`}</span>
+                            ) : (
+                              <span className="text-rose-600 font-medium">Pending for {stats.current_month_name}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-mono text-sm font-semibold">
+                          ₹{s.amount.toLocaleString("en-IN")}
+                        </span>
+                        {feeTab === "unpaid" && s.phone && (
+                          <a
+                            href={`https://wa.me/${s.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Dear Parent, this is a gentle reminder regarding chess fee payment of ₹${s.amount} for ${s.name} for ${stats.current_month_name}. Kindly clear it at your earliest convenience.`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md border border-emerald-200 text-xs flex items-center gap-1"
+                            title="Remind on WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline text-[11px]">Remind</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </section>
       )}

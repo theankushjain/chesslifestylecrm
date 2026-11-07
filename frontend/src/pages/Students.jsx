@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2 } from "lucide-react";
+import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2, AlertTriangle, Filter, Check, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -98,6 +98,8 @@ export default function Students() {
     return "all";
   });
 
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "active" | "inactive"
+  const [feeFilter, setFeeFilter] = useState("all"); // "all" | "paid" | "unpaid"
   const [students, setStudents] = useState([]);
   const [institutes, setInstitutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +151,12 @@ export default function Students() {
   };
   useEffect(() => { load(); }, []);
 
+  const curMonthLabel = new Date().toLocaleString("default", { month: "short" });
+  const activeCount = students.filter((s) => s.status === "active").length;
+  const inactiveCount = students.filter((s) => s.status !== "active").length;
+  const paidCount = students.filter((s) => s.is_fee_paid_this_month === true).length;
+  const unpaidCount = students.filter((s) => s.is_fee_paid_this_month === false).length;
+
   const filtered = students.filter((s) => {
     const matchesQuery =
       s.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -160,7 +168,19 @@ export default function Students() {
         : instituteFilter === "unassigned"
         ? !s.institute_id
         : String(s.institute_id || "") === String(instituteFilter);
-    return matchesQuery && matchesInstitute;
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "active"
+        ? s.status === "active"
+        : s.status !== "active";
+    const matchesFee =
+      feeFilter === "all"
+        ? true
+        : feeFilter === "paid"
+        ? s.is_fee_paid_this_month === true
+        : s.is_fee_paid_this_month === false;
+    return matchesQuery && matchesInstitute && matchesStatus && matchesFee;
   });
 
   return (
@@ -213,8 +233,8 @@ export default function Students() {
         </div>
       </div>
 
-      {/* Search and Institute Filter bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center">
+      {/* Search, Status and Institute Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-3 items-stretch sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search by name, phone or parent..." data-testid="student-search"
@@ -222,20 +242,39 @@ export default function Students() {
             className="pl-10 rounded-xl bg-white" />
         </div>
 
+        {/* Status Filter */}
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[190px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
+            <UserCheck className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
+            <SelectValue>
+              {statusFilter === "all"
+                ? `All Statuses (${students.length})`
+                : statusFilter === "active"
+                ? `Active Only (${activeCount})`
+                : `On Hold (${inactiveCount})`}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All Statuses ({students.length})</SelectItem>
+            <SelectItem value="active">Active Only ({activeCount})</SelectItem>
+            <SelectItem value="inactive">On Hold / Inactive ({inactiveCount})</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={instituteFilter} onValueChange={handleInstituteChange}>
-          <SelectTrigger className="w-full sm:w-[240px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
+          <SelectTrigger className="w-full sm:w-[230px] rounded-xl bg-white shadow-sm border-border/60 text-xs h-10">
             <Building2 className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
             <SelectValue>
               {instituteFilter === "all"
                 ? `All Institutes (${students.length})`
                 : instituteFilter === "unassigned"
-                ? `Direct / No Institute (${students.filter((s) => !s.institute_id).length})`
+                ? `Direct Enrollment (${students.filter((s) => !s.institute_id).length})`
                 : institutes.find((inst) => String(inst.id) === String(instituteFilter))?.name || "All Institutes"}
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-xl">
             <SelectItem value="all">All Institutes ({students.length})</SelectItem>
-            <SelectItem value="unassigned">Direct / No Institute ({students.filter(s => !s.institute_id).length})</SelectItem>
+            <SelectItem value="unassigned">Direct Enrollment ({students.filter(s => !s.institute_id).length})</SelectItem>
             {institutes.map((inst) => (
               <SelectItem key={inst.id} value={inst.id}>
                 {inst.name} ({students.filter(s => String(s.institute_id) === String(inst.id)).length})
@@ -243,6 +282,66 @@ export default function Students() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Quick Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
+        <button
+          onClick={() => { setStatusFilter("all"); setFeeFilter("all"); }}
+          className={`px-3 py-1.5 rounded-xl border transition-all ${
+            statusFilter === "all" && feeFilter === "all"
+              ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+              : "bg-white text-muted-foreground border-border/60 hover:bg-muted/30"
+          }`}
+        >
+          All Students ({students.length})
+        </button>
+
+        <button
+          onClick={() => {
+            setStatusFilter(statusFilter === "active" ? "all" : "active");
+          }}
+          className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+            statusFilter === "active"
+              ? "bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs"
+              : "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50/50"
+          }`}
+        >
+          <UserCheck className="w-3.5 h-3.5" />
+          Active Only ({activeCount})
+        </button>
+
+        {(user?.role === "admin" || user?.role === "institute") && (
+          <>
+            <button
+              onClick={() => {
+                setFeeFilter(feeFilter === "paid" ? "all" : "paid");
+              }}
+              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+                feeFilter === "paid"
+                  ? "bg-emerald-700 text-white border-emerald-700 font-semibold shadow-xs"
+                  : "bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50/50"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {curMonthLabel} Fee Received ({paidCount})
+            </button>
+
+            <button
+              onClick={() => {
+                setFeeFilter(feeFilter === "unpaid" ? "all" : "unpaid");
+              }}
+              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+                feeFilter === "unpaid"
+                  ? "bg-rose-600 text-white border-rose-600 font-semibold shadow-xs"
+                  : "bg-white text-rose-700 border-rose-200 hover:bg-rose-50/50"
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {curMonthLabel} Fee Due ({unpaidCount})
+            </button>
+          </>
+        )}
       </div>
 
       {loading ? (
@@ -286,11 +385,38 @@ export default function Students() {
                   )}
                 </div>
               </Link>
-              <div className="flex items-center gap-2 shrink-0 px-4">
+              <div className="flex items-center gap-2.5 shrink-0 px-4">
+                {/* Current Month Fee Status Badge */}
+                {(user?.role === "admin" || user?.role === "institute") && (
+                  s.is_fee_paid_this_month ? (
+                    <span
+                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shrink-0"
+                      title={s.current_month_fee?.paid_date ? `Paid on ${s.current_month_fee.paid_date.slice(0, 10)}` : 'Paid this month'}
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span>{curMonthLabel} Fee Paid</span>
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 shrink-0"
+                      title="Current month fee due / unpaid"
+                    >
+                      <AlertTriangle className="w-3 h-3 text-rose-600" />
+                      <span>{curMonthLabel} Fee Due</span>
+                    </span>
+                  )
+                )}
+
                 {(user?.role === "admin" || user?.role === "institute") && (s.fee_amount || s.monthly_fee) ? (
-                  <span className="text-xs font-mono hidden sm:inline">₹{s.fee_amount || s.monthly_fee}/{s.fee_type === "per_class" ? "class" : "mo"}</span>
+                  <span className="text-xs font-mono hidden md:inline text-muted-foreground">₹{s.fee_amount || s.monthly_fee}/{s.fee_type === "per_class" ? "class" : "mo"}</span>
                 ) : null}
-                {s.status === "active" ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <Circle className="w-3.5 h-3.5 text-muted-foreground" />}
+
+                {/* Status indicator */}
+                {s.status === "active" ? (
+                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 hidden sm:inline">Active</span>
+                ) : (
+                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 hidden sm:inline">{s.status || "On Hold"}</span>
+                )}
                 {(s.parent_phone || s.phone) && (
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation();

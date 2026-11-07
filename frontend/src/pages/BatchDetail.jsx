@@ -123,7 +123,16 @@ export default function BatchDetail() {
 
   const studentsInBatch = useMemo(() => {
     const map = new Map(allStudents.map((s) => [s.id, s]));
-    return (batch?.student_ids || []).map((sid) => map.get(sid)).filter(Boolean);
+    const list = (batch?.student_ids || []).map((sid) => map.get(sid)).filter(Boolean);
+    // Sort so active & fee-paid students are at top, and unpaid / on-hold students are moved to the bottom
+    return [...list].sort((a, b) => {
+      const aUnpaid = a.status !== "active" || a.is_fee_paid_this_month === false;
+      const bUnpaid = b.status !== "active" || b.is_fee_paid_this_month === false;
+      if (aUnpaid !== bUnpaid) {
+        return aUnpaid ? 1 : -1;
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [batch, allStudents]);
 
   const studentsNotInBatch = useMemo(() => {
@@ -216,6 +225,12 @@ export default function BatchDetail() {
       } else {
         toast.success(`Attendance saved for ${attendanceDate}`);
       }
+
+      // Automatically reactivate attending students in local state
+      const absentSet = new Set(absent_ids);
+      setAllStudents((prev) =>
+        prev.map((s) => (!absentSet.has(s.id) ? { ...s, status: "active" } : s))
+      );
 
       // Refresh outcomes data to reflect new completion counters immediately
       loadOutcomes();
@@ -500,7 +515,14 @@ export default function BatchDetail() {
                   >
                     <Icon className={`w-5 h-5 ${config.color} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{s.name}</div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        <span>{s.name}</span>
+                        {(!s.is_fee_paid_this_month || s.status !== "active") && (
+                          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            {s.status !== "active" ? "On Hold" : "Fee Due"}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
                         {s.level}
                         {s.institute_name && ` · ${s.institute_name}`}
@@ -567,7 +589,14 @@ export default function BatchDetail() {
           {studentsInBatch.map((s) => (
             <div key={s.id} className="flex items-center justify-between p-2.5 border border-border/40 shadow-sm rounded-xl hover:bg-muted/10 transition-colors">
               <div>
-                <Link to={`/students/${s.id}`} className="text-sm font-medium hover:underline">{s.name}</Link>
+                <div className="flex items-center gap-2">
+                  <Link to={`/students/${s.id}`} className="text-sm font-medium hover:underline">{s.name}</Link>
+                  {(!s.is_fee_paid_this_month || s.status !== "active") && (
+                    <span className="text-[9px] font-normal px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                      {s.status !== "active" ? "On Hold" : "Fee Due"}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <span>{s.level}</span>
                   {s.institute_name && (

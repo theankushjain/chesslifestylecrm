@@ -106,11 +106,8 @@ export default function AttendanceReport() {
           api.get("/students"),
           api.get("/institutes"),
         ]);
-        if (!active) return;
-        const activeStudents = (stdRes.data || []).filter(
-          (s) => s.status === "active"
-        );
-        setStudents(activeStudents);
+        // Keep all students (do not drop unpaid or on hold students from the attendance sheet)
+        setStudents(stdRes.data || []);
         setInstitutes(instRes.data || []);
       } catch (e) {
         if (active) toast.error(formatApiError(e));
@@ -254,6 +251,16 @@ export default function AttendanceReport() {
 
       return matchesInstitute && matchesQuery;
     });
+
+    // Move unpaid / on hold / inactive students to the bottom of the list
+    return [...list].sort((a, b) => {
+      const aUnpaid = a.status !== "active" || a.is_fee_paid_this_month === false;
+      const bUnpaid = b.status !== "active" || b.is_fee_paid_this_month === false;
+      if (aUnpaid !== bUnpaid) {
+        return aUnpaid ? 1 : -1;
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [students, instituteFilter, searchQuery]);
 
   // Selected institute label for the Select display
@@ -285,6 +292,12 @@ export default function AttendanceReport() {
       : null;
 
     // Optimistic UI update
+    if (nextStatus === "present" || nextStatus === "late") {
+      setStudents((prev) =>
+        prev.map((s) => (s.id === studentId ? { ...s, status: "active" } : s))
+      );
+    }
+
     setAttendance((prev) => {
       const existingIdx = prev.findIndex(
         (a) => a.student_id === studentId && a.date === dateStr
@@ -602,6 +615,11 @@ export default function AttendanceReport() {
                         className="font-medium hover:underline flex items-center gap-2"
                       >
                         <span>{s.name}</span>
+                        {(!s.is_fee_paid_this_month || s.status !== "active") && (
+                          <span className="text-[9px] font-normal px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                            {s.status !== "active" ? "On Hold" : "Fee Due"}
+                          </span>
+                        )}
                         {s.institute_name && instituteFilter === "all" && (
                           <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                             {s.institute_name}

@@ -1025,8 +1025,9 @@ def resolve_institute_payment_details(inst: Optional[dict], default_pay: dict) -
     res["source"] = "Default (The Chess Lifestyle)"
     return res
 
-async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None) -> dict:
+async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None, cur_pay_map: Optional[dict] = None) -> dict:
     c = clean(doc)
+    sid = str(c.get("id") or doc.get("_id"))
     iid = c.get("institute_id")
     inst = None
     if iid:
@@ -1042,6 +1043,36 @@ async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None,
     if default_pay is None:
         default_pay = await get_default_payment_details()
     c["payment_details"] = resolve_institute_payment_details(inst, default_pay)
+
+    # Current month fee receipt status
+    now_dt = now_utc()
+    cur_year = now_dt.year
+    cur_month = now_dt.month
+    if cur_pay_map is not None:
+        p = cur_pay_map.get(sid)
+    else:
+        p = await db.payments.find_one({"student_id": sid, "year": cur_year, "month": cur_month})
+    
+    if p:
+        status_val = p.get("status", "unpaid")
+        c["is_fee_paid_this_month"] = (status_val == "paid")
+        c["current_month_fee"] = {
+            "status": status_val,
+            "amount": p.get("amount", 0),
+            "paid_date": p.get("paid_date"),
+            "year": cur_year,
+            "month": cur_month,
+        }
+    else:
+        c["is_fee_paid_this_month"] = False
+        c["current_month_fee"] = {
+            "status": "unpaid",
+            "amount": c.get("fee_amount") or c.get("monthly_fee") or 0,
+            "paid_date": None,
+            "year": cur_year,
+            "month": cur_month,
+        }
+
     return redact_fee_fields(c, role)
 
 
@@ -1066,7 +1097,10 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
     insts = await db.institutes.find({}, {"_id": 1, "name": 1, "logo_url": 1, "has_custom_payment_details": 1, "payment_details": 1}).to_list(1000)
     inst_map = {str(i["_id"]): i for i in insts}
     default_pay = await get_default_payment_details()
-    return [await _enrich_student(d, user["role"], inst_map, default_pay) for d in docs]
+    now_dt = now_utc()
+    cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
+    cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
+    return [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map) for d in docs]
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
@@ -1202,6 +1236,13 @@ async def mark_attendance(body: AttendanceIn, user: dict = Depends(require_roles
         doc = {"_id": str(uuid.uuid4()), **body.model_dump(),
                "created_at": iso(now_utc())}
         await db.attendance.insert_one(doc)
+    
+    # Automatically reactivate student as soon as present/late is marked for them
+    if body.status in ["present", "late"]:
+        await db.students.update_one(
+            {"_id": body.student_id},
+            {"$set": {"status": "active", "updated_at": iso(now_utc())}}
+        )
     return clean(doc)
 
 @api.delete("/attendance")
@@ -1627,15 +1668,43 @@ async def stats(user: dict = Depends(require_roles("admin", "staff"))):
     total_students = await db.students.count_documents({"status": "active"})
     total_leads = await db.leads.count_documents({})
     hot_leads = await db.leads.count_documents({"stage": {"$in": ["contacted", "trial_scheduled", "trial_done"]}})
-    unpaid_count = await db.payments.count_documents({
-        "year": today.year, "month": today.month,
-        "status": {"$in": ["unpaid", "overdue"]}
-    })
-    paid_amounts = await db.payments.aggregate([
-        {"$match": {"year": today.year, "month": today.month, "status": "paid"}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-    ]).to_list(1)
-    revenue = paid_amounts[0]["total"] if paid_amounts else 0
+    
+    cur_year, cur_month = today.year, today.month
+    month_payments = await db.payments.find({"year": cur_year, "month": cur_month}).to_list(2000)
+    
+    paid_payments = [p for p in month_payments if p.get("status") == "paid"]
+    unpaid_payments = [p for p in month_payments if p.get("status") in ["unpaid", "overdue"]]
+    
+    revenue = sum(p.get("amount", 0) for p in paid_payments)
+    unpaid_amount = sum(p.get("amount", 0) for p in unpaid_payments)
+
+    all_sids = list(set([p["student_id"] for p in month_payments]))
+    students_docs = await db.students.find({"_id": {"$in": all_sids}}).to_list(len(all_sids) + 10)
+    students_by_id = {str(s["_id"]): s for s in students_docs}
+    
+    paid_students = []
+    for p in paid_payments:
+        st = students_by_id.get(p["student_id"], {})
+        paid_students.append({
+            "student_id": p["student_id"],
+            "name": st.get("name", "Student"),
+            "institute_name": st.get("institute_name", ""),
+            "amount": p.get("amount", 0),
+            "paid_date": p.get("paid_date"),
+            "status": "paid",
+        })
+    
+    unpaid_students = []
+    for p in unpaid_payments:
+        st = students_by_id.get(p["student_id"], {})
+        unpaid_students.append({
+            "student_id": p["student_id"],
+            "name": st.get("name", "Student"),
+            "institute_name": st.get("institute_name", ""),
+            "amount": p.get("amount", 0),
+            "phone": st.get("parent_phone") or st.get("phone") or "",
+            "status": p.get("status", "unpaid"),
+        })
 
     funnel = {"new": 0, "contacted": 0, "trial_scheduled": 0, "trial_done": 0, "enrolled": 0, "not_interested": 0}
     async for l in db.leads.find({}, {"stage": 1}):
@@ -1645,8 +1714,14 @@ async def stats(user: dict = Depends(require_roles("admin", "staff"))):
         "total_students": total_students,
         "total_leads": total_leads,
         "hot_leads": hot_leads,
-        "unpaid_count": unpaid_count,
+        "unpaid_count": len(unpaid_payments),
+        "paid_count": len(paid_payments),
         "month_revenue": revenue,
+        "unpaid_amount": unpaid_amount,
+        "current_month_name": today.strftime("%B"),
+        "current_year": cur_year,
+        "paid_students": paid_students,
+        "unpaid_students": unpaid_students,
         "funnel": funnel,
     }
 
@@ -1859,6 +1934,13 @@ async def take_batch_attendance(bid: str, body: TakeAttendanceIn, user: dict = D
                 "created_at": iso(now_utc()),
             })
         saved += 1
+
+    # Automatically reactivate attending students who were on hold or inactive
+    if attending_sids:
+        await db.students.update_many(
+            {"_id": {"$in": attending_sids}},
+            {"$set": {"status": "active", "updated_at": iso(now_utc())}}
+        )
         
     # 3. Automatically update learning progress outcomes for students who attended
     all_outcomes_to_complete = list(body.selected_outcome_texts or [])
@@ -2101,7 +2183,10 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
     inst_map = {iid: inst}
     default_pay = await get_default_payment_details()
-    return [await _enrich_student(s, user["role"], inst_map, default_pay) for s in students]
+    now_dt = now_utc()
+    cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
+    cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
+    return [await _enrich_student(s, user["role"], inst_map, default_pay, cur_pay_map) for s in students]
 
 @api.get("/settings/payment-details")
 async def get_payment_details_endpoint(user: dict = Depends(get_current_user)):
