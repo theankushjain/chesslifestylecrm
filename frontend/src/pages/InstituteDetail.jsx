@@ -48,6 +48,9 @@ import {
   Upload,
   Image as ImageIcon,
   X,
+  Landmark,
+  CreditCard,
+  RefreshCw,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -55,6 +58,8 @@ import { exportToCSV } from "@/lib/export";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { getTypeBadge } from "./Institutes";
+import { DefaultPaymentDetailsDialog } from "@/components/crm/DefaultPaymentDetailsDialog";
+import { InstitutePaymentDetailsDialog } from "@/components/crm/InstitutePaymentDetailsDialog";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
@@ -75,8 +80,24 @@ export default function InstituteDetail() {
 
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [defaultPaymentDialogOpen, setDefaultPaymentDialogOpen] = useState(false);
+  const [customPaymentDialogOpen, setCustomPaymentDialogOpen] = useState(false);
 
   const canEdit = user?.role === "admin" || user?.role === "staff";
+  const canManagePayments = user?.role === "admin";
+
+  const handleRevertToDefault = async () => {
+    try {
+      await api.patch(`/institutes/${id}`, {
+        has_custom_payment_details: false,
+        payment_details: null,
+      });
+      toast.success(`${institute?.name} reverted to global default payment details`);
+      loadData();
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -430,6 +451,141 @@ export default function InstituteDetail() {
         </div>
       )}
 
+      {/* Invoice & Payment Details Card */}
+      <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-serif font-bold flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-primary" />
+                <span>Invoice Payment Details</span>
+              </h2>
+              <span
+                className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
+                  institute?.has_custom_payment_details
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-blue-50 text-blue-700 border-blue-200"
+                }`}
+              >
+                {institute?.has_custom_payment_details ? "Customized for this Institution" : "Using Global Default (TCL)"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              These payment details (UPI, QR code, bank transfer info) appear automatically on all invoices generated for students enrolled in {institute?.name}.
+            </p>
+          </div>
+
+          {canManagePayments && (
+            <div className="flex items-center gap-2 shrink-0">
+              {institute?.has_custom_payment_details && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRevertToDefault}
+                  className="rounded-xl text-xs h-9 text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" /> Revert to Default
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => setCustomPaymentDialogOpen(true)}
+                className="rounded-xl text-xs h-9 shadow-sm"
+              >
+                <CreditCard className="w-3.5 h-3.5 mr-1.5" />
+                {institute?.has_custom_payment_details ? "Edit Custom Details" : "Customize Payment Details"}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Payment details content */}
+        {(() => {
+          const effectivePay =
+            institute?.effective_payment_details ||
+            institute?.payment_details ||
+            institute?.default_payment_details ||
+            {};
+          const qrSrc =
+            effectivePay.qr_code_url ||
+            (effectivePay.upi_id === "ankushjainr2@ybl"
+              ? "/tcl_upi_qr.png"
+              : effectivePay.upi_id
+              ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                  `upi://pay?pa=${encodeURIComponent(effectivePay.upi_id)}&pn=${encodeURIComponent(effectivePay.account_name || "Chess Fees")}`
+                )}`
+              : "/tcl_upi_qr.png");
+
+          return (
+            <div className="mt-4 flex flex-col md:flex-row items-start md:items-center gap-5 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+              {qrSrc && (
+                <div className="w-20 h-20 bg-white border border-slate-200 rounded-lg p-1 shrink-0 flex items-center justify-center shadow-xs">
+                  <img
+                    src={qrSrc}
+                    alt="QR Code"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+              <div className="flex-1 space-y-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Beneficiary / Name:</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {effectivePay.account_name || "The Chess Lifestyle"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">UPI / VPA:</span>
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-foreground">
+                    {effectivePay.upi_id || "ankushjainr2@ybl"}
+                  </span>
+                </div>
+                {(effectivePay.bank_name || effectivePay.account_number || effectivePay.ifsc_code) && (
+                  <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 pt-1 font-mono">
+                    {effectivePay.bank_name && (
+                      <span>
+                        Bank: <strong>{effectivePay.bank_name}</strong>
+                      </span>
+                    )}
+                    {effectivePay.account_number && (
+                      <span>
+                        A/C: <strong>{effectivePay.account_number}</strong>
+                      </span>
+                    )}
+                    {effectivePay.ifsc_code && (
+                      <span>
+                        IFSC: <strong>{effectivePay.ifsc_code}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+                {effectivePay.notes && (
+                  <p className="text-xs text-muted-foreground pt-0.5 italic">
+                    "{effectivePay.notes}"
+                  </p>
+                )}
+              </div>
+
+              {user?.role === "admin" && !institute?.has_custom_payment_details && (
+                <div className="shrink-0 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDefaultPaymentDialogOpen(true)}
+                    className="text-xs text-primary hover:underline hover:bg-primary/5"
+                  >
+                    Change Global Default for All &rarr;
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Mapped Classes / Batches Section */}
       <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -696,6 +852,21 @@ export default function InstituteDetail() {
       <EditInstituteModal
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+        institute={institute}
+        onSaved={loadData}
+      />
+
+      {/* Default Payment Details Dialog */}
+      <DefaultPaymentDetailsDialog
+        open={defaultPaymentDialogOpen}
+        onOpenChange={setDefaultPaymentDialogOpen}
+        onSaved={loadData}
+      />
+
+      {/* Institution Custom Payment Details Dialog */}
+      <InstitutePaymentDetailsDialog
+        open={customPaymentDialogOpen}
+        onOpenChange={setCustomPaymentDialogOpen}
         institute={institute}
         onSaved={loadData}
       />

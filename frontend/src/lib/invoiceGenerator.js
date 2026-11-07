@@ -48,6 +48,7 @@ function fmtAmt(n) {
  * @param {number} opts.qty             – quantity (set to 1 for flat fee)
  * @param {number} opts.rate            – rate per unit (= amount / qty)
  * @param {Date}   [opts.invoiceDate]   – defaults to now
+ * @param {Object} [opts.paymentDetails] – optional payment details override (defaults to student.payment_details or global TCL)
  */
 export function generateInvoice({
   student,
@@ -57,16 +58,46 @@ export function generateInvoice({
   qty = 1,
   rate,
   invoiceDate,
+  paymentDetails = null,
 }) {
   const now        = invoiceDate || new Date();
   const invoiceNum = buildInvoiceNumber(now);
   const dateStr    = formatDate(now);
   const effectiveRate = rate !== undefined ? rate : amount / qty;
 
-  const qrSrc   = `${window.location.origin}/tcl_upi_qr.png`;
   const logoSrc  = `${window.location.origin}/tcl_logo.png`;
   const instituteLogo = student?.institute_logo || null;
   const instituteName = student?.institute_name || "";
+
+  // Dynamic Payment Details (custom institute details or default TCL)
+  const pay = paymentDetails || student?.payment_details || {
+    account_name: "The Chess Lifestyle",
+    upi_id: "ankushjainr2@ybl",
+    bank_name: "",
+    account_number: "",
+    ifsc_code: "",
+    qr_code_url: "/tcl_upi_qr.png",
+    notes: "Please scan the QR code to complete your payment instantly.",
+  };
+
+  const accountName = pay.account_name || "The Chess Lifestyle";
+  const upiId = pay.upi_id || "ankushjainr2@ybl";
+  const notes = pay.notes || "Please scan the QR code to complete your payment instantly.";
+  const hasBankDetails = Boolean(pay.bank_name || pay.account_number || pay.ifsc_code);
+
+  let qrSrc = pay.qr_code_url || "";
+  if (!qrSrc) {
+    if (upiId === "ankushjainr2@ybl" || upiId.startsWith("ankushjainr2")) {
+      qrSrc = `${window.location.origin}/tcl_upi_qr.png`;
+    } else if (upiId) {
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(accountName)}&am=${amount}&cu=INR`;
+      qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUrl)}`;
+    }
+  } else if (!qrSrc.startsWith("http") && !qrSrc.startsWith("data:") && !qrSrc.startsWith("/")) {
+    qrSrc = `${window.location.origin}/${qrSrc}`;
+  } else if (qrSrc.startsWith("/")) {
+    qrSrc = `${window.location.origin}${qrSrc}`;
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -180,17 +211,29 @@ export function generateInvoice({
       padding: 3mm 4mm;
     }
     .payment-box {
-      border: 0.3mm solid #e2e8f0; border-radius: 3mm;
-      padding: 5mm 6mm; display: flex; align-items: center; gap: 6mm; margin-bottom: 10mm;
+      border: 0.3mm solid #cbd5e1; border-radius: 3mm;
+      padding: 4mm 5mm; display: flex; align-items: center; gap: 5mm; margin-bottom: 8mm;
+      background: #f8fafc;
     }
-    .qr-wrap img { height: 24mm; width: 24mm; object-fit: contain; }
-    .payment-info .payment-title { font-size: 10pt; font-weight: 700; margin-bottom: 2mm; }
+    .qr-wrap img {
+      height: 25mm; width: 25mm; object-fit: contain;
+      border-radius: 2mm; background: #fff; padding: 1mm; border: 0.2mm solid #cbd5e1;
+    }
+    .payment-info { flex: 1; }
+    .payment-info .payment-title { font-size: 10pt; font-weight: 700; color: #0f172a; margin-bottom: 1.5mm; }
+    .pay-beneficiary { font-size: 8.5pt; color: #334155; margin-bottom: 1.5mm; }
     .upi-badge {
-      display: inline-block; font-family: 'Courier New', monospace; font-size: 9pt;
-      background: #f1f5f9; border: 0.3mm solid #cbd5e1; border-radius: 1.5mm;
-      padding: 1mm 3mm; color: #0f172a; margin-bottom: 2mm;
+      display: inline-block; font-family: 'Courier New', monospace; font-size: 9pt; font-weight: 700;
+      background: #fff; border: 0.3mm solid #94a3b8; border-radius: 1.5mm;
+      padding: 1mm 3mm; color: #0f172a; margin-bottom: 1.5mm;
     }
-    .payment-info .payment-note { font-size: 8.5pt; color: #64748b; }
+    .payment-grid {
+      display: flex; flex-wrap: wrap; gap: 2mm 5mm; margin-top: 1.5mm; margin-bottom: 1.5mm;
+      font-size: 8pt; color: #475569;
+    }
+    .payment-grid-item span { color: #64748b; margin-right: 1mm; }
+    .payment-grid-item strong { color: #0f172a; font-weight: 600; font-family: 'Courier New', monospace; }
+    .payment-info .payment-note { font-size: 8pt; color: #64748b; margin-top: 1mm; line-height: 1.25; }
     .footer {
       position: absolute; bottom: 8mm; left: 14mm; right: 14mm;
       display: flex; justify-content: space-between; font-size: 7.5pt;
@@ -295,13 +338,23 @@ export function generateInvoice({
     </table>
   </div>
   <div class="payment-box">
-    <div class="qr-wrap">
-      <img src="${qrSrc}" alt="UPI QR Code" onerror="this.style.display='none'" />
-    </div>
+    ${qrSrc ? `
+      <div class="qr-wrap">
+        <img src="${qrSrc}" alt="UPI QR Code" onerror="this.style.display='none'" />
+      </div>
+    ` : ""}
     <div class="payment-info">
       <div class="payment-title">Payment Details</div>
-      <div class="upi-badge">UPI/VPA: ankushjainr2@ybl</div>
-      <div class="payment-note">Please scan the QR code to complete your payment instantly.</div>
+      ${accountName ? `<div class="pay-beneficiary">Beneficiary / Account Name: <strong>${accountName}</strong></div>` : ""}
+      ${upiId ? `<div class="upi-badge">UPI / VPA: ${upiId}</div>` : ""}
+      ${hasBankDetails ? `
+        <div class="payment-grid">
+          ${pay.bank_name ? `<div class="payment-grid-item"><span>Bank:</span> <strong>${pay.bank_name}</strong></div>` : ""}
+          ${pay.account_number ? `<div class="payment-grid-item"><span>A/C No:</span> <strong>${pay.account_number}</strong></div>` : ""}
+          ${pay.ifsc_code ? `<div class="payment-grid-item"><span>IFSC:</span> <strong>${pay.ifsc_code}</strong></div>` : ""}
+        </div>
+      ` : ""}
+      ${notes ? `<div class="payment-note">${notes}</div>` : ""}
     </div>
   </div>
   <div class="footer">

@@ -38,13 +38,23 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = n
 
   useEffect(() => {
     setEnrichedStudent(student);
-    if (student?.institute_id && !student?.institute_logo) {
+    if (student?.institute_id && (!student?.institute_logo || !student?.payment_details)) {
       api.get(`/institutes/${student.institute_id}`).then((res) => {
-        if (res.data?.logo_url) {
+        if (res.data) {
           setEnrichedStudent((prev) => ({
             ...prev,
-            institute_logo: res.data.logo_url,
+            institute_logo: prev?.institute_logo || res.data.logo_url,
             institute_name: prev?.institute_name || res.data.name,
+            payment_details: prev?.payment_details || res.data.effective_payment_details,
+          }));
+        }
+      }).catch(() => {});
+    } else if (!student?.payment_details) {
+      api.get("/settings/payment-details").then((res) => {
+        if (res.data) {
+          setEnrichedStudent((prev) => ({
+            ...prev,
+            payment_details: res.data,
           }));
         }
       }).catch(() => {});
@@ -123,6 +133,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = n
       descNotes,
       qty: Number(qty) || 1,
       invoiceDate: date,
+      paymentDetails: enrichedStudent?.payment_details || student?.payment_details || null,
     });
 
     if (invNum) {
@@ -272,6 +283,24 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = n
               />
             </div>
           </div>
+
+          {/* Payment details preview */}
+          {enrichedStudent?.payment_details && (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${enrichedStudent.payment_details.is_custom ? 'bg-emerald-500' : 'bg-blue-500'}`}></span>
+                <span className="text-muted-foreground">Payment Details:</span>
+                <span className="font-medium text-foreground">
+                  {enrichedStudent.payment_details.is_custom
+                    ? `Custom (${enrichedStudent.payment_details.source || enrichedStudent.institute_name})`
+                    : "Default (The Chess Lifestyle)"}
+                </span>
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                UPI: {enrichedStudent.payment_details.upi_id || "ankushjainr2@ybl"}
+              </span>
+            </div>
+          )}
 
           {/* Total preview */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 flex items-center justify-between">

@@ -46,9 +46,13 @@ import {
   Upload,
   Image as ImageIcon,
   X,
+  Landmark,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { DefaultPaymentDetailsDialog } from "@/components/crm/DefaultPaymentDetailsDialog";
+import { InstitutePaymentDetailsDialog } from "@/components/crm/InstitutePaymentDetailsDialog";
 
 const INSTITUTE_TYPES = [
   { value: "School", label: "School", icon: GraduationCap, color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -80,6 +84,8 @@ export default function Institutes() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInstitute, setEditingInstitute] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [defaultPaymentDialogOpen, setDefaultPaymentDialogOpen] = useState(false);
+  const [customPaymentInstitute, setCustomPaymentInstitute] = useState(null);
 
   const canEdit = user?.role === "admin" || user?.role === "staff";
   const canDelete = user?.role === "admin";
@@ -136,18 +142,30 @@ export default function Institutes() {
             Manage different schools, residential societies, and campuses to view their enrolled students.
           </p>
         </div>
-        {canEdit && (
-          <Button
-            onClick={() => {
-              setEditingInstitute(null);
-              setDialogOpen(true);
-            }}
-            data-testid="add-institute-btn"
-            className="rounded-xl h-10 shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> Add Institute
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && (
+            <Button
+              variant="outline"
+              onClick={() => setDefaultPaymentDialogOpen(true)}
+              className="rounded-xl h-10 shadow-sm border-primary/20 hover:border-primary/40 text-foreground"
+            >
+              <Landmark className="w-4 h-4 mr-1.5 text-primary" />
+              Default Payment Details
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              onClick={() => {
+                setEditingInstitute(null);
+                setDialogOpen(true);
+              }}
+              data-testid="add-institute-btn"
+              className="rounded-xl h-10 shadow-sm"
+            >
+              <Plus className="w-4 h-4 mr-1.5" /> Add Institute
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Metric Cards */}
@@ -299,8 +317,23 @@ export default function Institutes() {
                       <span>{inst.phone}</span>
                     </div>
                   )}
+                <div className="flex items-center justify-between text-[11px] py-1 border-t border-border/30">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Landmark className="w-3 h-3 text-muted-foreground/70" />
+                    Invoice Payment:
+                  </span>
+                  {inst.has_custom_payment_details ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px]">
+                      Custom ({inst.effective_payment_details?.upi_id || "Configured"})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full text-[10px]">
+                      Default TCL
+                    </span>
+                  )}
                 </div>
               </div>
+            </div>
 
               <div className="pt-3 border-t border-border/40 flex items-center justify-between mt-2">
                 <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
@@ -310,6 +343,18 @@ export default function Institutes() {
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {user?.role === "admin" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCustomPaymentInstitute(inst);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/5 transition-colors"
+                      title="Configure Invoice Payment Details"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {canEdit && (
                     <button
                       onClick={(e) => {
@@ -358,6 +403,21 @@ export default function Institutes() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         institute={editingInstitute}
+        onSaved={load}
+      />
+
+      {/* Default Payment Details Dialog */}
+      <DefaultPaymentDetailsDialog
+        open={defaultPaymentDialogOpen}
+        onOpenChange={setDefaultPaymentDialogOpen}
+        onSaved={load}
+      />
+
+      {/* Institution Custom Payment Details Dialog */}
+      <InstitutePaymentDetailsDialog
+        open={!!customPaymentInstitute}
+        onOpenChange={(open) => !open && setCustomPaymentInstitute(null)}
+        institute={customPaymentInstitute}
         onSaved={load}
       />
 

@@ -165,6 +165,24 @@ class StudentUpdate(BaseModel):
     institute_id: Optional[str] = None
     institute_name: Optional[str] = None
 
+class PaymentDetailsIn(BaseModel):
+    account_name: Optional[str] = "The Chess Lifestyle"
+    upi_id: Optional[str] = "ankushjainr2@ybl"
+    bank_name: Optional[str] = ""
+    account_number: Optional[str] = ""
+    ifsc_code: Optional[str] = ""
+    qr_code_url: Optional[str] = None
+    notes: Optional[str] = "Please scan the QR code to complete your payment instantly."
+
+class PaymentDetailsUpdate(BaseModel):
+    account_name: Optional[str] = None
+    upi_id: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    qr_code_url: Optional[str] = None
+    notes: Optional[str] = None
+
 class InstituteIn(BaseModel):
     name: str
     type: str = "School"  # School, Society, Academy, Club, Other
@@ -175,6 +193,8 @@ class InstituteIn(BaseModel):
     notes: str = ""
     status: str = "active"
     logo_url: Optional[str] = None
+    has_custom_payment_details: bool = False
+    payment_details: Optional[dict] = None
 
 class InstituteUpdate(BaseModel):
     name: Optional[str] = None
@@ -186,6 +206,8 @@ class InstituteUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     logo_url: Optional[str] = None
+    has_custom_payment_details: Optional[bool] = None
+    payment_details: Optional[dict] = None
 
 class AssignStudentsIn(BaseModel):
     student_ids: list[str]
@@ -973,9 +995,40 @@ def redact_fee_fields(doc: dict, role: str) -> dict:
     return doc
 
 
-async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None) -> dict:
+DEFAULT_PAYMENT_DETAILS = {
+    "account_name": "The Chess Lifestyle",
+    "upi_id": "ankushjainr2@ybl",
+    "bank_name": "",
+    "account_number": "",
+    "ifsc_code": "",
+    "qr_code_url": "/tcl_upi_qr.png",
+    "notes": "Please scan the QR code to complete your payment instantly.",
+}
+
+async def get_default_payment_details() -> dict:
+    doc = await db.settings.find_one({"_id": "default_payment_details"})
+    res = dict(DEFAULT_PAYMENT_DETAILS)
+    if doc:
+        for k, v in doc.items():
+            if k != "_id" and v is not None:
+                res[k] = v
+    return res
+
+def resolve_institute_payment_details(inst: Optional[dict], default_pay: dict) -> dict:
+    if inst and inst.get("has_custom_payment_details") and inst.get("payment_details"):
+        custom = dict(inst["payment_details"])
+        custom["is_custom"] = True
+        custom["source"] = inst.get("name") or "Institution"
+        return custom
+    res = dict(default_pay)
+    res["is_custom"] = False
+    res["source"] = "Default (The Chess Lifestyle)"
+    return res
+
+async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None) -> dict:
     c = clean(doc)
     iid = c.get("institute_id")
+    inst = None
     if iid:
         if inst_map is not None:
             inst = inst_map.get(iid)
@@ -985,6 +1038,10 @@ async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None)
             c["institute_logo"] = inst.get("logo_url")
             if not c.get("institute_name"):
                 c["institute_name"] = inst.get("name")
+    
+    if default_pay is None:
+        default_pay = await get_default_payment_details()
+    c["payment_details"] = resolve_institute_payment_details(inst, default_pay)
     return redact_fee_fields(c, role)
 
 
@@ -1006,9 +1063,10 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
             else:
                 q["institute_id"] = institute_id
         docs = await db.students.find(q).sort("name", 1).to_list(1000)
-    insts = await db.institutes.find({}, {"_id": 1, "name": 1, "logo_url": 1}).to_list(1000)
+    insts = await db.institutes.find({}, {"_id": 1, "name": 1, "logo_url": 1, "has_custom_payment_details": 1, "payment_details": 1}).to_list(1000)
     inst_map = {str(i["_id"]): i for i in insts}
-    return [await _enrich_student(d, user["role"], inst_map) for d in docs]
+    default_pay = await get_default_payment_details()
+    return [await _enrich_student(d, user["role"], inst_map, default_pay) for d in docs]
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
@@ -1961,10 +2019,12 @@ async def list_institutes(user: dict = Depends(require_roles("admin", "staff", "
     ]).to_list(500)
     count_map = {c["_id"]: c["count"] for c in counts}
     
+    default_pay = await get_default_payment_details()
     res = []
     for inst in institutes:
         doc = clean(inst)
         doc["student_count"] = count_map.get(doc["id"], 0)
+        doc["effective_payment_details"] = resolve_institute_payment_details(doc, default_pay)
         res.append(doc)
     return res
 
@@ -1979,6 +2039,8 @@ async def create_institute(body: InstituteIn, user: dict = Depends(require_roles
     await db.institutes.insert_one(doc)
     out = clean(doc)
     out["student_count"] = 0
+    default_pay = await get_default_payment_details()
+    out["effective_payment_details"] = resolve_institute_payment_details(out, default_pay)
     return out
 
 @api.get("/institutes/{iid}")
@@ -1991,11 +2053,16 @@ async def get_institute(iid: str, user: dict = Depends(require_roles("admin", "s
     student_count = await db.students.count_documents({"institute_id": iid})
     res = clean(doc)
     res["student_count"] = student_count
+    default_pay = await get_default_payment_details()
+    res["default_payment_details"] = default_pay
+    res["effective_payment_details"] = resolve_institute_payment_details(res, default_pay)
     return res
 
 @api.patch("/institutes/{iid}")
 async def update_institute(iid: str, body: InstituteUpdate, user: dict = Depends(require_roles("admin", "staff"))):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if ("has_custom_payment_details" in updates or "payment_details" in updates) and user["role"] != "admin":
+        raise HTTPException(403, "Only admins can modify payment details")
     if updates:
         updates["updated_at"] = iso(now_utc())
         await db.institutes.update_one({"_id": iid}, {"$set": updates})
@@ -2010,6 +2077,9 @@ async def update_institute(iid: str, body: InstituteUpdate, user: dict = Depends
     student_count = await db.students.count_documents({"institute_id": iid})
     res = clean(doc)
     res["student_count"] = student_count
+    default_pay = await get_default_payment_details()
+    res["default_payment_details"] = default_pay
+    res["effective_payment_details"] = resolve_institute_payment_details(res, default_pay)
     return res
 
 @api.delete("/institutes/{iid}")
@@ -2029,16 +2099,24 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     if not inst:
         raise HTTPException(404, "Institute not found")
     students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
-    logo = inst.get("logo_url")
-    name = inst.get("name")
-    out = []
-    for s in students:
-        c = clean(s)
-        c["institute_logo"] = logo
-        if not c.get("institute_name"):
-            c["institute_name"] = name
-        out.append(redact_fee_fields(c, user["role"]))
-    return out
+    inst_map = {iid: inst}
+    default_pay = await get_default_payment_details()
+    return [await _enrich_student(s, user["role"], inst_map, default_pay) for s in students]
+
+@api.get("/settings/payment-details")
+async def get_payment_details_endpoint(user: dict = Depends(get_current_user)):
+    return await get_default_payment_details()
+
+@api.put("/settings/payment-details")
+async def update_payment_details_endpoint(body: PaymentDetailsUpdate, user: dict = Depends(require_roles("admin"))):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    updates["updated_at"] = iso(now_utc())
+    await db.settings.update_one(
+        {"_id": "default_payment_details"},
+        {"$set": updates},
+        upsert=True
+    )
+    return await get_default_payment_details()
 
 @api.post("/institutes/{iid}/students")
 async def assign_students_to_institute(iid: str, body: AssignStudentsIn, user: dict = Depends(require_roles("admin", "staff"))):
