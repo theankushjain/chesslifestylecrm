@@ -17,6 +17,7 @@ import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp, studentInvoiceMessage } from "@/lib/whatsapp";
 import { toast } from "sonner";
 import { generateInvoice, buildInvoiceNumber } from "@/lib/invoiceGenerator";
+import { api } from "@/lib/api";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -33,6 +34,23 @@ const MONTHS = [
  *   payment         – optional payment record from ledger (with amount, month, year, status)
  */
 export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = null }) {
+  const [enrichedStudent, setEnrichedStudent] = useState(student);
+
+  useEffect(() => {
+    setEnrichedStudent(student);
+    if (student?.institute_id && !student?.institute_logo) {
+      api.get(`/institutes/${student.institute_id}`).then((res) => {
+        if (res.data?.logo_url) {
+          setEnrichedStudent((prev) => ({
+            ...prev,
+            institute_logo: res.data.logo_url,
+            institute_name: prev?.institute_name || res.data.name,
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [student, open]);
+
   const now = new Date();
   const defaultFee = payment?.amount !== undefined ? payment.amount : (student?.fee_amount || student?.monthly_fee || 0);
 
@@ -99,7 +117,7 @@ export function GenerateInvoiceDialog({ open, onOpenChange, student, payment = n
       : new Date();
 
     const invNum = generateInvoice({
-      student,
+      student: enrichedStudent || student,
       amount: effectiveAmount,
       description,
       descNotes,

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, formatApiError } from "@/lib/api";
-import { CheckCircle2, Circle, Trophy, Star, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, Trophy, Star, Sparkles, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { downloadProgressReport } from "@/lib/ProgressReportGenerator";
 
 export default function ProgressReportView() {
   const { id } = useParams();
@@ -105,8 +106,22 @@ export default function ProgressReportView() {
           
           <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 relative z-10">
             <div className="text-center md:text-left flex-1">
-              <div className="inline-flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
-                <Sparkles className="w-3.5 h-3.5" /> Official Progress Report
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
+                <div className="inline-flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                  <Sparkles className="w-3.5 h-3.5" /> Official Progress Report
+                </div>
+                {data.institute_name && (
+                  <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 px-3 py-1 rounded-full text-xs font-semibold border border-slate-200">
+                    {data.institute_logo && (
+                      <img
+                        src={data.institute_logo}
+                        alt={data.institute_name}
+                        className="w-4 h-4 object-contain rounded"
+                      />
+                    )}
+                    <span>{data.institute_name}</span>
+                  </div>
+                )}
               </div>
               <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-2 tracking-tight">
                 {data.student_name}
@@ -140,17 +155,36 @@ export default function ProgressReportView() {
             </div>
           </div>
           
-          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center md:justify-start gap-8">
-            <div>
-              <div className="text-sm text-slate-500 font-medium">Mastered</div>
-              <div className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-orange-500" /> {completedOutcomes}
+          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-8">
+              <div>
+                <div className="text-sm text-slate-500 font-medium">Mastered</div>
+                <div className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-orange-500" /> {completedOutcomes}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-slate-500 font-medium">Total Goals</div>
+                <div className="text-2xl font-bold text-slate-900">{totalOutcomes}</div>
               </div>
             </div>
-            <div>
-              <div className="text-sm text-slate-500 font-medium">Total Goals</div>
-              <div className="text-2xl font-bold text-slate-900">{totalOutcomes}</div>
-            </div>
+
+            <button
+              onClick={() =>
+                downloadProgressReport(
+                  {
+                    name: data.student_name,
+                    institute_name: data.institute_name,
+                    institute_logo: data.institute_logo,
+                  },
+                  data.outcomes
+                )
+              }
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-semibold transition-colors shadow-sm"
+            >
+              <Download className="w-4 h-4 text-orange-400" />
+              Download Official PDF
+            </button>
           </div>
         </div>
 

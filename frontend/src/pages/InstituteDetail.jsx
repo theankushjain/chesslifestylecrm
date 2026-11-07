@@ -45,6 +45,9 @@ import {
   Clock,
   Calendar,
   IndianRupee,
+  Upload,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -237,11 +240,20 @@ export default function InstituteDetail() {
       {/* Institute Overview Card */}
       <div className="bg-white border border-border/40 rounded-xl p-5 md:p-6 shadow-sm mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-border/40">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {getTypeBadge(institute.type)}
-            <span className="text-xs text-muted-foreground font-mono">
-              ID: {institute.id.slice(0, 8)}
-            </span>
+          <div className="flex items-center gap-3">
+            {institute.logo_url && (
+              <img
+                src={institute.logo_url}
+                alt={institute.name}
+                className="w-12 h-12 rounded-xl object-contain bg-white border border-border/60 p-1 shadow-xs shrink-0"
+              />
+            )}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {getTypeBadge(institute.type)}
+              <span className="text-xs text-muted-foreground font-mono">
+                ID: {institute.id.slice(0, 8)}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1012,6 +1024,7 @@ function EditInstituteModal({ open, onOpenChange, institute, onSaved }) {
     email: "",
     address: "",
     notes: "",
+    logo_url: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -1025,9 +1038,45 @@ function EditInstituteModal({ open, onOpenChange, institute, onSaved }) {
         email: institute.email || "",
         address: institute.address || "",
         notes: institute.notes || "",
+        logo_url: institute.logo_url || "",
       });
     }
   }, [institute, open]);
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File size must be under 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        const maxDim = 400;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        setForm((prev) => ({ ...prev, logo_url: canvas.toDataURL("image/png") }));
+        toast.success("Logo uploaded!");
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -1065,6 +1114,68 @@ function EditInstituteModal({ open, onOpenChange, institute, onSaved }) {
               className="rounded-xl mt-1"
               required
             />
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-widest font-semibold flex items-center justify-between">
+              <span>Institution Logo</span>
+              <span className="text-[10px] lowercase text-muted-foreground font-normal">
+                (auto-added to Progress Reports & Invoices)
+              </span>
+            </Label>
+            <div className="mt-1 flex items-center gap-4 p-3 bg-muted/20 border border-border/60 rounded-xl">
+              {form.logo_url ? (
+                <div className="relative group shrink-0">
+                  <img
+                    src={form.logo_url}
+                    alt="Institute logo"
+                    className="w-16 h-16 object-contain rounded-lg border border-border/60 bg-white p-1 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, logo_url: "" })}
+                    className="absolute -top-1.5 -right-1.5 p-0.5 bg-destructive text-destructive-foreground rounded-full shadow hover:opacity-90"
+                    title="Remove logo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-lg border border-dashed border-border/80 flex flex-col items-center justify-center text-muted-foreground shrink-0 bg-white">
+                  <ImageIcon className="w-6 h-6 text-muted-foreground/60" />
+                </div>
+              )}
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoFileChange}
+                    />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      {form.logo_url ? "Change Logo" : "Upload Logo"}
+                    </span>
+                  </label>
+                  {form.logo_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setForm({ ...form, logo_url: "" })}
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive rounded-lg"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Upload PNG, JPG, or SVG (square or transparent background recommended).
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

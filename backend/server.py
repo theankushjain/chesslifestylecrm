@@ -174,6 +174,7 @@ class InstituteIn(BaseModel):
     address: str = ""
     notes: str = ""
     status: str = "active"
+    logo_url: Optional[str] = None
 
 class InstituteUpdate(BaseModel):
     name: Optional[str] = None
@@ -184,6 +185,7 @@ class InstituteUpdate(BaseModel):
     address: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+    logo_url: Optional[str] = None
 
 class AssignStudentsIn(BaseModel):
     student_ids: list[str]
@@ -850,9 +852,15 @@ async def get_public_progress(sid: str):
     progress = await sync_student_progress(sid)
     outcomes = [o for o in progress.get("outcomes", []) if o.get("completed")]
     
+    inst = None
+    if student.get("institute_id"):
+        inst = await db.institutes.find_one({"_id": student["institute_id"]})
+
     return {
         "student_name": student["name"],
         "level": student["level"],
+        "institute_name": inst.get("name") if inst else student.get("institute_name"),
+        "institute_logo": inst.get("logo_url") if inst else None,
         "outcomes": outcomes
     }
 
@@ -965,6 +973,21 @@ def redact_fee_fields(doc: dict, role: str) -> dict:
     return doc
 
 
+async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None) -> dict:
+    c = clean(doc)
+    iid = c.get("institute_id")
+    if iid:
+        if inst_map is not None:
+            inst = inst_map.get(iid)
+        else:
+            inst = await db.institutes.find_one({"_id": iid})
+        if inst:
+            c["institute_logo"] = inst.get("logo_url")
+            if not c.get("institute_name"):
+                c["institute_name"] = inst.get("name")
+    return redact_fee_fields(c, role)
+
+
 @api.get("/students")
 async def list_students(institute_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     if user["role"] == "student":
@@ -983,7 +1006,9 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
             else:
                 q["institute_id"] = institute_id
         docs = await db.students.find(q).sort("name", 1).to_list(1000)
-    return [redact_fee_fields(clean(d), user["role"]) for d in docs]
+    insts = await db.institutes.find({}, {"_id": 1, "name": 1, "logo_url": 1}).to_list(1000)
+    inst_map = {str(i["_id"]): i for i in insts}
+    return [await _enrich_student(d, user["role"], inst_map) for d in docs]
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
@@ -999,7 +1024,7 @@ async def create_student(body: StudentIn, user: dict = Depends(require_roles("ad
     doc = {"_id": str(uuid.uuid4()), **data,
            "joined_date": iso(now_utc()), "created_at": iso(now_utc())}
     await db.students.insert_one(doc)
-    return redact_fee_fields(clean(doc), user["role"])
+    return await _enrich_student(doc, user["role"])
 
 @api.get("/students/{sid}")
 async def get_student(sid: str, user: dict = Depends(get_current_user)):
@@ -1010,7 +1035,7 @@ async def get_student(sid: str, user: dict = Depends(get_current_user)):
         raise HTTPException(404, "Not found")
     if user["role"] == "institute" and doc.get("institute_id") != user.get("linked_institute_id"):
         raise HTTPException(403, "Access denied")
-    return redact_fee_fields(clean(doc), user["role"])
+    return await _enrich_student(doc, user["role"])
 
 @api.patch("/students/{sid}")
 async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(require_roles("admin", "staff"))):
@@ -2004,7 +2029,16 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     if not inst:
         raise HTTPException(404, "Institute not found")
     students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
-    return [redact_fee_fields(clean(s), user["role"]) for s in students]
+    logo = inst.get("logo_url")
+    name = inst.get("name")
+    out = []
+    for s in students:
+        c = clean(s)
+        c["institute_logo"] = logo
+        if not c.get("institute_name"):
+            c["institute_name"] = name
+        out.append(redact_fee_fields(c, user["role"]))
+    return out
 
 @api.post("/institutes/{iid}/students")
 async def assign_students_to_institute(iid: str, body: AssignStudentsIn, user: dict = Depends(require_roles("admin", "staff"))):

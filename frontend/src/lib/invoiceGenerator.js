@@ -65,6 +65,8 @@ export function generateInvoice({
 
   const qrSrc   = `${window.location.origin}/tcl_upi_qr.png`;
   const logoSrc  = `${window.location.origin}/tcl_logo.png`;
+  const instituteLogo = student?.institute_logo || null;
+  const instituteName = student?.institute_name || "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -97,9 +99,40 @@ export function generateInvoice({
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 10mm;
+      margin-bottom: 8mm;
     }
-    .logo-wrap img { height: 24mm; width: auto; object-fit: contain; }
+    .header-branding {
+      display: flex;
+      align-items: center;
+      gap: 5mm;
+    }
+    .logo-wrap img { height: 22mm; width: auto; object-fit: contain; }
+    .co-brand-divider {
+      width: 0.3mm;
+      height: 18mm;
+      background: #cbd5e1;
+    }
+    .inst-logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      max-width: 55mm;
+    }
+    .inst-logo-wrap img {
+      max-height: 20mm;
+      max-width: 48mm;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+    .inst-brand-name {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #64748b;
+      margin-top: 1mm;
+      line-height: 1.1;
+    }
     .invoice-meta { text-align: right; }
     .invoice-meta h1 {
       font-size: 26pt;
@@ -195,14 +228,24 @@ export function generateInvoice({
 </div>
 <div class="page">
   <div class="header">
-    <div class="logo-wrap">
-      <img src="${logoSrc}" alt="The Chess Lifestyle" onerror="this.style.display='none'" />
+    <div class="header-branding">
+      <div class="logo-wrap">
+        <img src="${logoSrc}" alt="The Chess Lifestyle" onerror="this.style.display='none'" />
+      </div>
+      ${instituteLogo ? `
+        <div class="co-brand-divider"></div>
+        <div class="inst-logo-wrap">
+          <img src="${instituteLogo}" alt="${instituteName || 'Institution'}" />
+          ${instituteName ? `<div class="inst-brand-name">${instituteName}</div>` : ""}
+        </div>
+      ` : ""}
     </div>
     <div class="invoice-meta">
       <h1>INVOICE</h1>
       <table>
         <tr><td>Invoice #:</td><td>${invoiceNum}</td></tr>
         <tr><td>Date:</td><td>${dateStr}</td></tr>
+        ${instituteName ? `<tr><td>Institution:</td><td>${instituteName}</td></tr>` : ""}
       </table>
     </div>
   </div>

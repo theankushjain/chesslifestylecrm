@@ -43,6 +43,9 @@ import {
   ChevronRight,
   School,
   Award,
+  Upload,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -251,15 +254,28 @@ export default function Institutes() {
               data-testid={`institute-card-${inst.id}`}
             >
               <div>
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      to={`/institutes/${inst.id}`}
-                      className="font-serif font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 block"
-                      title={inst.name}
-                    >
-                      {inst.name}
-                    </Link>
+                <div className="flex items-start justify-between gap-2.5 mb-2">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {inst.logo_url ? (
+                      <img
+                        src={inst.logo_url}
+                        alt={inst.name}
+                        className="w-10 h-10 rounded-lg object-contain bg-white border border-border/60 p-0.5 shrink-0 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to={`/institutes/${inst.id}`}
+                        className="font-serif font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 block"
+                        title={inst.name}
+                      >
+                        {inst.name}
+                      </Link>
+                    </div>
                   </div>
                   <div className="shrink-0">{getTypeBadge(inst.type)}</div>
                 </div>
@@ -379,6 +395,7 @@ function InstituteDialog({ open, onOpenChange, institute, onSaved }) {
     email: "",
     address: "",
     notes: "",
+    logo_url: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -392,6 +409,7 @@ function InstituteDialog({ open, onOpenChange, institute, onSaved }) {
         email: institute.email || "",
         address: institute.address || "",
         notes: institute.notes || "",
+        logo_url: institute.logo_url || "",
       });
     } else {
       setForm({
@@ -402,9 +420,45 @@ function InstituteDialog({ open, onOpenChange, institute, onSaved }) {
         email: "",
         address: "",
         notes: "",
+        logo_url: "",
       });
     }
   }, [institute, open]);
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File size must be under 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        const maxDim = 400;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        setForm((prev) => ({ ...prev, logo_url: canvas.toDataURL("image/png") }));
+        toast.success("Logo uploaded!");
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -453,6 +507,68 @@ function InstituteDialog({ open, onOpenChange, institute, onSaved }) {
               data-testid="institute-form-name"
               required
             />
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-widest font-semibold flex items-center justify-between">
+              <span>Institution Logo</span>
+              <span className="text-[10px] lowercase text-muted-foreground font-normal">
+                (auto-added to Progress Reports & Invoices)
+              </span>
+            </Label>
+            <div className="mt-1 flex items-center gap-4 p-3 bg-muted/20 border border-border/60 rounded-xl">
+              {form.logo_url ? (
+                <div className="relative group shrink-0">
+                  <img
+                    src={form.logo_url}
+                    alt="Institute logo"
+                    className="w-16 h-16 object-contain rounded-lg border border-border/60 bg-white p-1 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, logo_url: "" })}
+                    className="absolute -top-1.5 -right-1.5 p-0.5 bg-destructive text-destructive-foreground rounded-full shadow hover:opacity-90"
+                    title="Remove logo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-lg border border-dashed border-border/80 flex flex-col items-center justify-center text-muted-foreground shrink-0 bg-white">
+                  <ImageIcon className="w-6 h-6 text-muted-foreground/60" />
+                </div>
+              )}
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoFileChange}
+                    />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      {form.logo_url ? "Change Logo" : "Upload Logo"}
+                    </span>
+                  </label>
+                  {form.logo_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setForm({ ...form, logo_url: "" })}
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive rounded-lg"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Upload PNG, JPG, or SVG (square or transparent background recommended).
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
