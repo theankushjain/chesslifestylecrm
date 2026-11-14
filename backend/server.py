@@ -2660,6 +2660,11 @@ async def trigger_pending(user: dict = Depends(require_roles("admin"))):
     return {"ok": True}
 
 
+@app.get("/health")
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
 app.include_router(api)
 
 app.add_middleware(
