@@ -51,6 +51,7 @@ import {
   Landmark,
   CreditCard,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -62,6 +63,29 @@ import { DefaultPaymentDetailsDialog } from "@/components/crm/DefaultPaymentDeta
 import { InstitutePaymentDetailsDialog } from "@/components/crm/InstitutePaymentDetailsDialog";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
+
+function formatProgressDate(isoStr) {
+  if (!isoStr) return "";
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr.slice(0, 10);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1 && diffMs >= 0) return "just now";
+    if (diffHours < 24 && d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+      return "today";
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear()) {
+      return "yesterday";
+    }
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch (e) {
+    return isoStr.slice(0, 10);
+  }
+}
 
 export default function InstituteDetail() {
   const { id } = useParams();
@@ -164,7 +188,19 @@ export default function InstituteDetail() {
     exportToCSV(data, `${institute.name.replace(/\s+/g, "_")}_Students.csv`);
   };
 
-  const filteredStudents = students.filter((s) => {
+  const sortedStudents = [...students].sort((a, b) => {
+    const aDate = a.progress_updated_at || "";
+    const bDate = b.progress_updated_at || "";
+    if (aDate && !bDate) return -1;
+    if (!aDate && bDate) return 1;
+    if (aDate && bDate) {
+      if (aDate > bDate) return -1;
+      if (aDate < bDate) return 1;
+    }
+    return (a.name || "").localeCompare(b.name || "");
+  });
+
+  const filteredStudents = sortedStudents.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       (s.phone || "").includes(search) ||
@@ -762,10 +798,19 @@ export default function InstituteDetail() {
                     >
                       {s.name}
                     </Link>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                       <span className="capitalize">{s.status || "active"}</span>
                       {s.dob && <span>· DOB: {s.dob}</span>}
+                      {s.progress_updated_at && (
+                        <span
+                          className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200/80 font-medium rounded-full flex items-center gap-1 shrink-0"
+                          title={`Progress updated: ${new Date(s.progress_updated_at).toLocaleString()}`}
+                        >
+                          <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                          Progress: {formatProgressDate(s.progress_updated_at)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

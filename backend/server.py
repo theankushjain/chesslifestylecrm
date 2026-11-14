@@ -138,6 +138,7 @@ class StudentIn(BaseModel):
     hobby: str = ""
     institute_id: Optional[str] = None
     institute_name: Optional[str] = None
+    progress_updated_at: Optional[str] = None
 
 class AccountCreate(BaseModel):
     email: str
@@ -164,6 +165,7 @@ class StudentUpdate(BaseModel):
     hobby: Optional[str] = None
     institute_id: Optional[str] = None
     institute_name: Optional[str] = None
+    progress_updated_at: Optional[str] = None
 
 class PaymentDetailsIn(BaseModel):
     account_name: Optional[str] = "The Chess Lifestyle"
@@ -617,15 +619,38 @@ async def on_startup():
     await db.batches.create_index("name")
     await db.institutes.create_index("name")
     await db.students.create_index("institute_id")
+    await db.students.create_index("progress_updated_at")
     await db.student_progress.create_index("student_id", unique=True)
     await db.push_subscriptions.create_index("user_id")
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
+    await backfill_student_progress_timestamps()
     await seed_batches()
     await seed_institutes()
     asyncio.create_task(check_pending_tasks_and_notify())
     asyncio.create_task(check_completed_classes_and_notify())
+
+async def backfill_student_progress_timestamps():
+    """Ensure all students have progress_updated_at synced from existing student_progress records."""
+    try:
+        async for p in db.student_progress.find({}):
+            sid = p.get("student_id")
+            if not sid:
+                continue
+            ts = p.get("updated_at")
+            outcomes = p.get("outcomes", [])
+            completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
+            latest_cdate = max(completed_dates) if completed_dates else None
+            candidates = [cand for cand in [ts, latest_cdate] if cand]
+            if candidates:
+                best_ts = max(candidates)
+                await db.students.update_one(
+                    {"_id": sid},
+                    {"$set": {"progress_updated_at": best_ts}}
+                )
+    except Exception as e:
+        logger.error(f"Error backfilling progress timestamps: {e}")
 
 async def backfill_dobs():
     """Backfill DOB for seeded students that were created before the DOB field existed."""
@@ -860,6 +885,10 @@ async def update_student_progress(sid: str, body: ProgressOutcomesIn, user: dict
         {"_id": doc["_id"]},
         {"$set": {"outcomes": outcomes_dict, "updated_at": now_str}}
     )
+    await db.students.update_one(
+        {"_id": sid},
+        {"$set": {"progress_updated_at": now_str}}
+    )
     doc["outcomes"] = outcomes_dict
     return clean(doc)
 
@@ -1044,7 +1073,7 @@ def resolve_institute_payment_details(inst: Optional[dict], default_pay: dict) -
     res["source"] = "Default (The Chess Lifestyle)"
     return res
 
-async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None, cur_pay_map: Optional[dict] = None) -> dict:
+async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None, cur_pay_map: Optional[dict] = None, prog_map: Optional[dict] = None) -> dict:
     c = clean(doc)
     sid = str(c.get("id") or doc.get("_id"))
     iid = c.get("institute_id")
@@ -1062,6 +1091,20 @@ async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None,
     if default_pay is None:
         default_pay = await get_default_payment_details()
     c["payment_details"] = resolve_institute_payment_details(inst, default_pay)
+
+    # Progress updated timestamp
+    if prog_map is not None:
+        c["progress_updated_at"] = prog_map.get(sid) or c.get("progress_updated_at")
+    elif not c.get("progress_updated_at"):
+        p = await db.student_progress.find_one({"student_id": sid})
+        if p:
+            ts = p.get("updated_at")
+            outcomes = p.get("outcomes", [])
+            completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
+            latest_cdate = max(completed_dates) if completed_dates else None
+            candidates = [cand for cand in [ts, latest_cdate] if cand]
+            if candidates:
+                c["progress_updated_at"] = max(candidates)
 
     # Current month fee receipt status
     now_dt = now_utc()
@@ -1104,7 +1147,7 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
     elif user["role"] == "institute":
         iid = user.get("linked_institute_id")
         if not iid: return []
-        docs = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
+        docs = await db.students.find({"institute_id": iid}).to_list(1000)
     else:
         q = {}
         if institute_id:
@@ -1112,14 +1155,33 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
                 q["$or"] = [{"institute_id": None}, {"institute_id": ""}, {"institute_id": {"$exists": False}}]
             else:
                 q["institute_id"] = institute_id
-        docs = await db.students.find(q).sort("name", 1).to_list(1000)
+        docs = await db.students.find(q).to_list(1000)
     insts = await db.institutes.find({}, {"_id": 1, "name": 1, "logo_url": 1, "has_custom_payment_details": 1, "payment_details": 1}).to_list(1000)
     inst_map = {str(i["_id"]): i for i in insts}
     default_pay = await get_default_payment_details()
     now_dt = now_utc()
     cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
     cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
-    return [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map) for d in docs]
+
+    prog_docs = await db.student_progress.find({}, {"student_id": 1, "updated_at": 1, "outcomes": 1}).to_list(2000)
+    prog_map = {}
+    for p in prog_docs:
+        s_id = str(p.get("student_id") or "")
+        if not s_id:
+            continue
+        ts = p.get("updated_at")
+        outcomes = p.get("outcomes", [])
+        completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
+        latest_cdate = max(completed_dates) if completed_dates else None
+        candidates = [cand for cand in [ts, latest_cdate] if cand]
+        if candidates:
+            prog_map[s_id] = max(candidates)
+
+    enriched = [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map, prog_map) for d in docs]
+    # Arrange students whose progress was updated recently on the top
+    enriched.sort(key=lambda s: (s.get("name") or "").lower())
+    enriched.sort(key=lambda s: s.get("progress_updated_at") or "", reverse=True)
+    return enriched
 
 @api.post("/students")
 async def create_student(body: StudentIn, user: dict = Depends(require_roles("admin", "staff"))):
@@ -2038,6 +2100,10 @@ async def take_batch_attendance(bid: str, body: TakeAttendanceIn, user: dict = D
                     {"student_id": sid},
                     {"$set": {"outcomes": existing_outcomes, "updated_at": now_ts}}
                 )
+                await db.students.update_one(
+                    {"_id": sid},
+                    {"$set": {"progress_updated_at": now_ts}}
+                )
                 
     return {"ok": True, "count": saved, "date": body.date, "topic": combined_topic}
 
@@ -2199,13 +2265,32 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     inst = await db.institutes.find_one({"_id": iid})
     if not inst:
         raise HTTPException(404, "Institute not found")
-    students = await db.students.find({"institute_id": iid}).sort("name", 1).to_list(1000)
+    students = await db.students.find({"institute_id": iid}).to_list(1000)
     inst_map = {iid: inst}
     default_pay = await get_default_payment_details()
     now_dt = now_utc()
     cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
     cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
-    return [await _enrich_student(s, user["role"], inst_map, default_pay, cur_pay_map) for s in students]
+
+    prog_docs = await db.student_progress.find({"student_id": {"$in": [s["_id"] for s in students]}}, {"student_id": 1, "updated_at": 1, "outcomes": 1}).to_list(1000)
+    prog_map = {}
+    for p in prog_docs:
+        s_id = str(p.get("student_id") or "")
+        if not s_id:
+            continue
+        ts = p.get("updated_at")
+        outcomes = p.get("outcomes", [])
+        completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
+        latest_cdate = max(completed_dates) if completed_dates else None
+        candidates = [cand for cand in [ts, latest_cdate] if cand]
+        if candidates:
+            prog_map[s_id] = max(candidates)
+
+    enriched = [await _enrich_student(s, user["role"], inst_map, default_pay, cur_pay_map, prog_map) for s in students]
+    # Arrange students whose progress was updated recently on the top
+    enriched.sort(key=lambda s: (s.get("name") or "").lower())
+    enriched.sort(key=lambda s: s.get("progress_updated_at") or "", reverse=True)
+    return enriched
 
 @api.get("/settings/payment-details")
 async def get_payment_details_endpoint(user: dict = Depends(get_current_user)):

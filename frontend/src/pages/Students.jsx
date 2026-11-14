@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2, AlertTriangle, Filter, Check, UserCheck } from "lucide-react";
+import { Plus, Phone, Search, ChevronRight, CheckCircle2, Circle, Download, Printer, Building2, AlertTriangle, Filter, Check, UserCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Link, useSearchParams } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -15,6 +15,29 @@ import { useAuth } from "@/context/AuthContext";
 import { exportToCSV } from "@/lib/export";
 
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
+
+function formatProgressDate(isoStr) {
+  if (!isoStr) return "";
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr.slice(0, 10);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1 && diffMs >= 0) return "just now";
+    if (diffHours < 24 && d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+      return "today";
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear()) {
+      return "yesterday";
+    }
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch (e) {
+    return isoStr.slice(0, 10);
+  }
+}
 
 function MonthlyProgressDialog() {
   const [open, setOpen] = useState(false);
@@ -157,7 +180,19 @@ export default function Students() {
   const paidCount = students.filter((s) => s.is_fee_paid_this_month === true).length;
   const unpaidCount = students.filter((s) => s.is_fee_paid_this_month === false).length;
 
-  const filtered = students.filter((s) => {
+  const sortedStudents = [...students].sort((a, b) => {
+    const aDate = a.progress_updated_at || "";
+    const bDate = b.progress_updated_at || "";
+    if (aDate && !bDate) return -1;
+    if (!aDate && bDate) return 1;
+    if (aDate && bDate) {
+      if (aDate > bDate) return -1;
+      if (aDate < bDate) return 1;
+    }
+    return (a.name || "").localeCompare(b.name || "");
+  });
+
+  const filtered = sortedStudents.filter((s) => {
     const matchesQuery =
       s.name.toLowerCase().includes(query.toLowerCase()) ||
       (s.phone || "").includes(query) ||
@@ -193,7 +228,7 @@ export default function Students() {
         <div className="flex flex-wrap items-center gap-2">
           {(user?.role === "admin" || user?.role === "institute") && (
             <Button variant="outline" onClick={() => {
-              const exportData = students.map(s => ({
+              const exportData = sortedStudents.map(s => ({
                 Name: s.name,
                 Institute: s.institute_name || "Direct Enrollment",
                 Phone: s.phone || "",
@@ -204,6 +239,7 @@ export default function Students() {
                 Level: s.level || "",
                 "Monthly Fee": s.monthly_fee || 0,
                 Status: s.status || "",
+                "Progress Last Updated": s.progress_updated_at ? new Date(s.progress_updated_at).toLocaleDateString() : "Never",
                 DOB: s.dob || "",
                 Grade: s.grade || "",
                 School: s.school || "",
@@ -356,12 +392,21 @@ export default function Students() {
                   {s.name[0]}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium flex items-center gap-2 truncate">
-                    {s.name}
+                  <div className="font-medium flex items-center gap-2 truncate flex-wrap">
+                    <span>{s.name}</span>
                     {s.institute_name && (
                       <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-medium rounded-full flex items-center gap-1 shrink-0">
                         <Building2 className="w-2.5 h-2.5" />
                         {s.institute_name}
+                      </span>
+                    )}
+                    {s.progress_updated_at && (
+                      <span
+                        className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200/80 font-medium rounded-full flex items-center gap-1 shrink-0"
+                        title={`Progress updated: ${new Date(s.progress_updated_at).toLocaleString()}`}
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                        Progress: {formatProgressDate(s.progress_updated_at)}
                       </span>
                     )}
                     {Array.isArray(s.tags) && s.tags.length > 0 && (
