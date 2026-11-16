@@ -1073,7 +1073,7 @@ def resolve_institute_payment_details(inst: Optional[dict], default_pay: dict) -
     res["source"] = "Default (The Chess Lifestyle)"
     return res
 
-async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None, cur_pay_map: Optional[dict] = None, prog_map: Optional[dict] = None) -> dict:
+async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None, default_pay: Optional[dict] = None, cur_pay_map: Optional[dict] = None, prog_map: Optional[dict] = None, acc_map: Optional[dict] = None) -> dict:
     c = clean(doc)
     sid = str(c.get("id") or doc.get("_id"))
     iid = c.get("institute_id")
@@ -1135,6 +1135,15 @@ async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None,
             "month": cur_month,
         }
 
+    # Portal user account status
+    if acc_map is not None:
+        c["has_account"] = sid in acc_map
+        c["account_email"] = acc_map.get(sid)
+    else:
+        acc = await db.users.find_one({"role": "student", "linked_student_id": sid})
+        c["has_account"] = bool(acc)
+        c["account_email"] = acc.get("email") if acc else None
+
     return redact_fee_fields(c, role)
 
 
@@ -1177,7 +1186,10 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
         if candidates:
             prog_map[s_id] = max(candidates)
 
-    enriched = [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map, prog_map) for d in docs]
+    accounts = await db.users.find({"role": "student", "linked_student_id": {"$ne": None}}, {"linked_student_id": 1, "email": 1}).to_list(2000)
+    acc_map = {str(a["linked_student_id"]): a.get("email") for a in accounts if a.get("linked_student_id")}
+
+    enriched = [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map, prog_map, acc_map) for d in docs]
     # Arrange students whose progress was updated recently on the top
     enriched.sort(key=lambda s: (s.get("name") or "").lower())
     enriched.sort(key=lambda s: s.get("progress_updated_at") or "", reverse=True)
@@ -1235,6 +1247,83 @@ async def update_student(sid: str, body: StudentUpdate, user: dict = Depends(req
 async def delete_student(sid: str, user: dict = Depends(require_roles("admin"))):
     await db.students.delete_one({"_id": sid})
     return {"ok": True}
+
+@api.post("/students/{sid}/account")
+async def create_or_update_student_account(sid: str, body: AccountCreate, user: dict = Depends(require_roles("admin", "staff"))):
+    student = await db.students.find_one({"_id": sid})
+    if not student:
+        raise HTTPException(404, "Student not found")
+
+    email = (body.email or "").lower().strip()
+    password = (body.password or "").strip()
+    if not email or not password:
+        raise HTTPException(400, "Email and password are required")
+
+    pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    existing_by_email = await db.users.find_one({"email": email})
+    existing_by_sid = await db.users.find_one({"role": "student", "linked_student_id": sid})
+
+    if existing_by_sid:
+        if existing_by_email and str(existing_by_email["_id"]) != str(existing_by_sid["_id"]):
+            raise HTTPException(400, "Email is already registered to another account")
+        await db.users.update_one(
+            {"_id": existing_by_sid["_id"]},
+            {"$set": {
+                "email": email,
+                "name": student.get("name") or existing_by_sid.get("name"),
+                "password_hash": pwd_hash,
+                "updated_at": iso(now_utc())
+            }}
+        )
+        user_id = str(existing_by_sid["_id"])
+    elif existing_by_email:
+        if existing_by_email.get("linked_student_id") and str(existing_by_email["linked_student_id"]) != sid:
+            raise HTTPException(400, "Email is already registered to another account")
+        await db.users.update_one(
+            {"_id": existing_by_email["_id"]},
+            {"$set": {
+                "role": "student",
+                "linked_student_id": sid,
+                "name": student.get("name") or existing_by_email.get("name"),
+                "password_hash": pwd_hash,
+                "updated_at": iso(now_utc())
+            }}
+        )
+        user_id = str(existing_by_email["_id"])
+    else:
+        user_doc = {
+            "_id": str(uuid.uuid4()),
+            "name": student.get("name", "Student"),
+            "email": email,
+            "password_hash": pwd_hash,
+            "role": "student",
+            "linked_student_id": sid,
+            "created_at": iso(now_utc())
+        }
+        await db.users.insert_one(user_doc)
+        user_id = user_doc["_id"]
+
+    await db.students.update_one({"_id": sid}, {"$set": {"email": email}})
+    return {"status": "ok", "message": "Account created successfully", "user_id": user_id}
+
+@api.get("/students/{sid}/account")
+async def get_student_account(sid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    student = await db.students.find_one({"_id": sid})
+    if not student:
+        raise HTTPException(404, "Student not found")
+    account = await db.users.find_one({"role": "student", "linked_student_id": sid})
+    if not account:
+        return {"has_account": False, "account": None}
+    return {
+        "has_account": True,
+        "account": {
+            "id": str(account["_id"]),
+            "name": account.get("name"),
+            "email": account.get("email"),
+            "created_at": account.get("created_at")
+        }
+    }
 
 
 @api.get("/public/students/{sid}/form")
@@ -2395,17 +2484,25 @@ async def create_user(body: UserIn, user: dict = Depends(require_roles("admin"))
     if existing:
         raise HTTPException(400, "Email already exists")
     pwd_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+    linked_student_id = body.linked_student_id if body.linked_student_id else None
+    linked_institute_id = body.linked_institute_id if body.linked_institute_id else None
     doc = {
         "_id": str(uuid.uuid4()),
         "name": body.name,
         "email": body.email,
         "password_hash": pwd_hash,
         "role": body.role,
-        "linked_student_id": body.linked_student_id,
-        "linked_institute_id": body.linked_institute_id,
+        "linked_student_id": linked_student_id,
+        "linked_institute_id": linked_institute_id,
         "created_at": iso(now_utc())
     }
     await db.users.insert_one(doc)
+
+    if body.role == "student" and linked_student_id:
+        st = await db.students.find_one({"_id": linked_student_id})
+        if st and not st.get("email"):
+            await db.students.update_one({"_id": linked_student_id}, {"$set": {"email": body.email}})
+
     doc.pop("password_hash", None)
     return clean(doc)
 
@@ -2418,6 +2515,10 @@ async def update_user(uid: str, body: UserUpdate, user: dict = Depends(require_r
         raise HTTPException(400, "Cannot change your own role")
     if "password" in updates:
         updates["password_hash"] = bcrypt.hashpw(updates.pop("password").encode(), bcrypt.gensalt()).decode()
+    if "linked_student_id" in updates and not updates["linked_student_id"]:
+        updates["linked_student_id"] = None
+    if "linked_institute_id" in updates and not updates["linked_institute_id"]:
+        updates["linked_institute_id"] = None
     await db.users.update_one({"_id": uid}, {"$set": updates})
     doc = await db.users.find_one({"_id": uid}, {"password_hash": 0})
     return clean(doc)

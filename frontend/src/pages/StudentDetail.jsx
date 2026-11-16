@@ -192,7 +192,9 @@ export default function StudentDetail() {
               }} className="rounded-xl w-full sm:flex-1 md:flex-none">
                 <Copy className="w-4 h-4 mr-2" /> Copy Form Link
               </Button>
-              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-xl w-full sm:flex-1 md:flex-none">Create Account</Button>
+              <Button variant="outline" onClick={() => setAccountOpen(true)} className="rounded-xl w-full sm:flex-1 md:flex-none">
+                {student.has_account ? "Portal Account" : "Create Account"}
+              </Button>
               <Button onClick={() => setEditOpen(true)} className="rounded-xl w-full sm:flex-1 md:flex-none">
                 <Pencil className="w-4 h-4 mr-2" /> Edit
               </Button>
@@ -564,17 +566,28 @@ function StudentEditDialog({ student, onSaved }) {
 
 function StudentAccountDialog({ student, onSaved }) {
   const [form, setForm] = useState({
-    email: student.email || "",
+    email: student?.account_email || student?.email || "",
     password: Math.random().toString(36).slice(-8)
   });
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(false);
 
+  useEffect(() => {
+    setForm({
+      email: student?.account_email || student?.email || "",
+      password: Math.random().toString(36).slice(-8)
+    });
+    setCreated(false);
+  }, [student]);
+
+  const hasExistingAccount = Boolean(student?.has_account);
+
   const createAccount = async () => {
     setSaving(true);
     try {
-      await api.post(`/students/${student.id}/account`, form);
-      toast.success("Account created successfully!");
+      const studentId = student?.id || student?._id;
+      await api.post(`/students/${studentId}/account`, form);
+      toast.success(hasExistingAccount ? "Account updated successfully!" : "Account created successfully!");
       setCreated(true);
     } catch (e) {
       toast.error(formatApiError(e));
@@ -593,10 +606,14 @@ function StudentAccountDialog({ student, onSaved }) {
     return (
       <DialogContent className="rounded-xl max-w-sm">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">Account Created</DialogTitle>
+          <DialogTitle className="font-serif text-2xl">
+            {hasExistingAccount ? "Account Updated" : "Account Created"}
+          </DialogTitle>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <p className="text-sm text-muted-foreground">The portal account has been successfully created. You can now share the credentials with the parent.</p>
+          <p className="text-sm text-muted-foreground">
+            The portal account has been successfully {hasExistingAccount ? "updated" : "created"}. You can now share the credentials with the parent.
+          </p>
           <div className="bg-muted p-3 text-sm font-mono rounded">
             <div>Email: {form.email}</div>
             <div>Password: {form.password}</div>
@@ -615,9 +632,16 @@ function StudentAccountDialog({ student, onSaved }) {
   return (
     <DialogContent className="rounded-xl max-w-sm">
       <DialogHeader>
-        <DialogTitle className="font-serif text-2xl">Create Portal Account</DialogTitle>
+        <DialogTitle className="font-serif text-2xl">
+          {hasExistingAccount ? "Portal Account" : "Create Portal Account"}
+        </DialogTitle>
       </DialogHeader>
       <div className="space-y-4 py-2">
+        {hasExistingAccount && (
+          <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+            An active portal account already exists. Saving will update the login email and reset the password.
+          </p>
+        )}
         <div>
           <Label className="text-xs uppercase tracking-widest">Email (Login ID)</Label>
           <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="rounded-xl mt-1" />
@@ -630,7 +654,7 @@ function StudentAccountDialog({ student, onSaved }) {
       </div>
       <DialogFooter>
         <Button onClick={createAccount} disabled={saving || !form.email || !form.password} className="rounded-xl w-full">
-          {saving ? "Creating..." : "Create Account"}
+          {saving ? (hasExistingAccount ? "Saving..." : "Creating...") : (hasExistingAccount ? "Update Account Credentials" : "Create Account")}
         </Button>
       </DialogFooter>
     </DialogContent>

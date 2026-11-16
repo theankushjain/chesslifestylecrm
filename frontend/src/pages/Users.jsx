@@ -14,6 +14,7 @@ export default function Users() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [institutes, setInstitutes] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
@@ -22,6 +23,7 @@ export default function Users() {
     password: "",
     role: "staff",
     linked_institute_id: "",
+    linked_student_id: "",
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -33,12 +35,20 @@ export default function Users() {
   useEffect(() => {
     loadUsers();
     loadInstitutes();
+    loadStudents();
   }, []);
 
   const loadInstitutes = async () => {
     try {
       const res = await api.get("/institutes");
       setInstitutes(res.data);
+    } catch {}
+  };
+
+  const loadStudents = async () => {
+    try {
+      const res = await api.get("/students");
+      setStudents(res.data);
     } catch {}
   };
 
@@ -64,9 +74,12 @@ export default function Users() {
       if (payload.role !== "institute") {
         delete payload.linked_institute_id;
       }
+      if (payload.role !== "student" || !payload.linked_student_id) {
+        delete payload.linked_student_id;
+      }
       await api.post("/users", payload);
       toast.success("User created successfully");
-      setForm({ ...form, name: "", email: "", password: "", linked_institute_id: "" });
+      setForm({ ...form, name: "", email: "", password: "", linked_institute_id: "", linked_student_id: "" });
       loadUsers();
     } catch (err) {
       toast.error(formatApiError(err));
@@ -80,6 +93,7 @@ export default function Users() {
       email: u.email,
       role: u.role,
       linked_institute_id: u.linked_institute_id || "",
+      linked_student_id: u.linked_student_id || "",
       password: "",
     });
   };
@@ -88,6 +102,14 @@ export default function Users() {
     try {
       const payload = { ...editForm };
       if (!payload.password) delete payload.password;
+      if (payload.role !== "institute") {
+        payload.linked_institute_id = null;
+      }
+      if (payload.role !== "student") {
+        payload.linked_student_id = null;
+      } else if (!payload.linked_student_id || payload.linked_student_id === "none") {
+        payload.linked_student_id = null;
+      }
       await api.patch(`/users/${uid}`, payload);
       toast.success("User updated");
       setEditingId(null);
@@ -203,6 +225,37 @@ export default function Users() {
                   </Select>
                 </div>
               )}
+              {form.role === "student" && (
+                <div className="space-y-1.5 animate-in fade-in">
+                  <Label>Link Existing Student</Label>
+                  <Select
+                    value={form.linked_student_id || "none"}
+                    onValueChange={(v) => {
+                      const sid = v === "none" ? "" : v;
+                      const s = students.find((item) => item.id === sid);
+                      setForm((prev) => ({
+                        ...prev,
+                        linked_student_id: sid,
+                        name: s ? (!prev.name || students.some(st => st.name === prev.name) ? s.name : prev.name) : prev.name,
+                        email: s?.email ? (!prev.email || students.some(st => st.email === prev.email) ? s.email : prev.email) : prev.email,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Student (Optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 rounded-xl">
+                      <SelectItem value="none">-- None (Unlinked) --</SelectItem>
+                      {students.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} {s.email ? `(${s.email})` : s.phone ? `(${s.phone})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Select an existing student to connect their progress & portal data.</p>
+                </div>
+              )}
               <Button type="submit" className="w-full">Create Account</Button>
             </form>
           </CardContent>
@@ -269,6 +322,24 @@ export default function Users() {
                               </SelectContent>
                             </Select>
                           )}
+                          {editForm.role === "student" && (
+                            <Select
+                              value={editForm.linked_student_id || "none"}
+                              onValueChange={(v) => setEditForm({...editForm, linked_student_id: v === "none" ? "" : v})}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[140px]">
+                                <SelectValue placeholder="Link Student" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60 rounded-xl">
+                                <SelectItem value="none">-- No Student --</SelectItem>
+                                {students.map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
                       ) : (
                         <div>
@@ -278,6 +349,13 @@ export default function Users() {
                           {u.role === "institute" && (
                             <p className="text-xs text-primary font-medium mt-0.5">
                               {institutes.find((i) => i.id === u.linked_institute_id)?.name || "No Inst. Linked"}
+                            </p>
+                          )}
+                          {u.role === "student" && (
+                            <p className="text-xs text-primary font-medium mt-0.5">
+                              {students.find((s) => s.id === u.linked_student_id)?.name 
+                                ? `Student: ${students.find((s) => s.id === u.linked_student_id)?.name}`
+                                : (u.linked_student_id ? "Linked Student" : "No Student Linked")}
                             </p>
                           )}
                         </div>
