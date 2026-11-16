@@ -41,23 +41,28 @@ export default function Users() {
   const loadInstitutes = async () => {
     try {
       const res = await api.get("/institutes");
-      setInstitutes(res.data);
-    } catch {}
+      setInstitutes(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setInstitutes([]);
+    }
   };
 
   const loadStudents = async () => {
     try {
       const res = await api.get("/students");
-      setStudents(res.data);
-    } catch {}
+      setStudents(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setStudents([]);
+    }
   };
 
   const loadUsers = async () => {
     try {
       const res = await api.get("/users");
-      setUsers(res.data);
+      setUsers(Array.isArray(res?.data) ? res.data : []);
     } catch (err) {
       toast.error(formatApiError(err));
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -216,7 +221,7 @@ export default function Users() {
                       <SelectValue placeholder="Select Institution" />
                     </SelectTrigger>
                     <SelectContent>
-                      {institutes.map((inst) => (
+                      {(Array.isArray(institutes) ? institutes : []).map((inst) => (
                         <SelectItem key={inst.id} value={inst.id}>
                           {inst.name}
                         </SelectItem>
@@ -232,12 +237,13 @@ export default function Users() {
                     value={form.linked_student_id || "none"}
                     onValueChange={(v) => {
                       const sid = v === "none" ? "" : v;
-                      const s = students.find((item) => item.id === sid);
+                      const sList = Array.isArray(students) ? students : [];
+                      const s = sList.find((item) => (item.id || item._id) === sid);
                       setForm((prev) => ({
                         ...prev,
                         linked_student_id: sid,
-                        name: s ? (!prev.name || students.some(st => st.name === prev.name) ? s.name : prev.name) : prev.name,
-                        email: s?.email ? (!prev.email || students.some(st => st.email === prev.email) ? s.email : prev.email) : prev.email,
+                        name: s?.name || prev.name,
+                        email: s?.email || prev.email,
                       }));
                     }}
                   >
@@ -246,11 +252,14 @@ export default function Users() {
                     </SelectTrigger>
                     <SelectContent className="max-h-60 rounded-xl">
                       <SelectItem value="none">-- None (Unlinked) --</SelectItem>
-                      {students.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name} {s.email ? `(${s.email})` : s.phone ? `(${s.phone})` : ""}
-                        </SelectItem>
-                      ))}
+                      {(Array.isArray(students) ? students : []).map((s) => {
+                        const sid = s.id || s._id;
+                        return (
+                          <SelectItem key={sid} value={sid}>
+                            {s.name} {s.email ? `(${s.email})` : s.phone ? `(${s.phone})` : ""}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">Select an existing student to connect their progress & portal data.</p>
@@ -276,7 +285,7 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
+                {(Array.isArray(users) ? users : []).map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
                       {editingId === u.id ? (
@@ -314,7 +323,7 @@ export default function Users() {
                                 <SelectValue placeholder="Select Inst." />
                               </SelectTrigger>
                               <SelectContent>
-                                {institutes.map((inst) => (
+                                {(Array.isArray(institutes) ? institutes : []).map((inst) => (
                                   <SelectItem key={inst.id} value={inst.id}>
                                     {inst.name}
                                   </SelectItem>
@@ -332,11 +341,14 @@ export default function Users() {
                               </SelectTrigger>
                               <SelectContent className="max-h-60 rounded-xl">
                                 <SelectItem value="none">-- No Student --</SelectItem>
-                                {students.map((s) => (
-                                  <SelectItem key={s.id} value={s.id}>
-                                    {s.name}
-                                  </SelectItem>
-                                ))}
+                                {(Array.isArray(students) ? students : []).map((s) => {
+                                  const sid = s.id || s._id;
+                                  return (
+                                    <SelectItem key={sid} value={sid}>
+                                      {s.name}
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                           )}
@@ -348,13 +360,13 @@ export default function Users() {
                           </span>
                           {u.role === "institute" && (
                             <p className="text-xs text-primary font-medium mt-0.5">
-                              {institutes.find((i) => i.id === u.linked_institute_id)?.name || "No Inst. Linked"}
+                              {(Array.isArray(institutes) ? institutes : []).find((i) => (i.id || i._id) === u.linked_institute_id)?.name || "No Inst. Linked"}
                             </p>
                           )}
                           {u.role === "student" && (
                             <p className="text-xs text-primary font-medium mt-0.5">
-                              {students.find((s) => s.id === u.linked_student_id)?.name 
-                                ? `Student: ${students.find((s) => s.id === u.linked_student_id)?.name}`
+                              {(Array.isArray(students) ? students : []).find((s) => (s.id || s._id) === u.linked_student_id)?.name 
+                                ? `Student: ${(Array.isArray(students) ? students : []).find((s) => (s.id || s._id) === u.linked_student_id)?.name}`
                                 : (u.linked_student_id ? "Linked Student" : "No Student Linked")}
                             </p>
                           )}
@@ -417,7 +429,7 @@ export default function Users() {
                     <SelectItem value="role:admin">All Admins</SelectItem>
                     <SelectItem value="role:staff">All Staff</SelectItem>
                     <SelectItem value="role:student">All Students</SelectItem>
-                    {users.map(u => (
+                    {(Array.isArray(users) ? users : []).map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
                     ))}
                   </SelectContent>
