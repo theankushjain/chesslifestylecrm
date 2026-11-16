@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import Login from "@/pages/Login";
@@ -30,10 +30,15 @@ import RegistrationForm from "@/pages/RegistrationForm";
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) {
-    if (user.role === "student") return <Navigate to="/portal" replace />;
+    if (user.role === "student") {
+      if (location.pathname === "/attendance") return <Navigate to="/portal?tab=attendance" replace />;
+      if (location.pathname === "/payments") return <Navigate to="/portal?tab=fees" replace />;
+      return <Navigate to="/portal" replace />;
+    }
     if (user.role === "institute") {
       return <Navigate to={user.linked_institute_id ? `/institutes/${user.linked_institute_id}` : "/institutes"} replace />;
     }

@@ -13,18 +13,34 @@ const NAV = [
   { to: "/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance", roles: ["admin", "staff", "institute"] },
   { to: "/leads", label: "Leads", icon: Target, testid: "nav-leads", roles: ["admin"] },
   { to: "/payments", label: "Fees", icon: IndianRupee, testid: "nav-payments", roles: ["admin", "institute"] },
+  { to: "/portal", label: "My Portal", icon: User, testid: "nav-portal", roles: ["student"] },
+  { to: "/portal?tab=progress", label: "Progress", icon: TrendingUp, testid: "nav-student-progress", roles: ["student"] },
+  { to: "/portal?tab=attendance", label: "Attendance", icon: ClipboardList, testid: "nav-student-attendance", roles: ["student"] },
+  { to: "/portal?tab=fees", label: "Fees & Dues", icon: IndianRupee, testid: "nav-student-fees", roles: ["student"] },
   { to: "/tasks", label: "To-Do", icon: CheckSquare, testid: "nav-tasks", roles: ["admin", "staff", "student"] },
   { to: "/tally", label: "Tally", icon: TrendingUp, testid: "nav-tally", roles: ["admin"] },
   { to: "/feedback", label: "Feedback", icon: MessageSquare, testid: "nav-feedback", roles: ["admin"] },
   { to: "/users", label: "Users", icon: UserCog, testid: "nav-users", roles: ["admin"] },
   { to: "/chat", label: "AI", icon: MessageSquare, testid: "nav-chat", roles: ["admin"] },
-  { to: "/portal", label: "My Portal", icon: User, testid: "nav-portal", roles: ["student"] },
 ];
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isItemActive = (to) => {
+    if (to.includes("?")) {
+      const [pathname, search] = to.split("?");
+      return location.pathname === pathname && location.search === `?${search}`;
+    }
+    if (to === "/portal") {
+      return location.pathname === "/portal" && (!location.search || location.search === "?tab=overview");
+    }
+    if (to === "/") return location.pathname === "/" && !location.search;
+    return location.pathname.startsWith(to);
+  };
+
   const items = NAV.filter((n) => n.roles.includes(user.role)).map((n) => {
     if (user.role === "institute" && n.to === "/institutes" && user.linked_institute_id) {
       return {
@@ -36,7 +52,7 @@ export default function Layout() {
     return n;
   });
   
-  const MAX_VISIBLE = 4;
+  const MAX_VISIBLE = user.role === "student" ? 5 : 4;
   const visibleItems = items.length > MAX_VISIBLE ? items.slice(0, 3) : items;
   const hiddenItems = items.length > MAX_VISIBLE ? items.slice(3) : [];
 
@@ -60,13 +76,14 @@ export default function Layout() {
               to={n.to}
               end={n.to === "/"}
               data-testid={n.testid}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  isActive 
+              className={() => {
+                const active = isItemActive(n.to);
+                return `flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                  active 
                     ? "bg-[#F58B10] text-white shadow-md shadow-[#F58B10]/20" 
                     : "hover:bg-white/10 text-white/70 hover:text-white"
-                }`
-              }
+                }`;
+              }}
             >
               <n.icon className="w-5 h-5" />
               {n.label}
@@ -124,20 +141,24 @@ export default function Layout() {
               to={n.to}
               end={n.to === "/"}
               data-testid={`${n.testid}-mobile`}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-1.5 py-2 px-1 text-[10px] font-medium transition-all duration-200 rounded-xl ${
-                  isActive ? "text-[#F58B10]" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                }`
-              }
+              className={() => {
+                const active = isItemActive(n.to);
+                return `flex flex-col items-center justify-center gap-1.5 py-2 px-1 text-[10px] font-medium transition-all duration-200 rounded-xl ${
+                  active ? "text-[#F58B10]" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                }`;
+              }}
             >
-              {({ isActive }) => (
-                <>
-                  <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-[#F58B10]/10' : ''}`}>
-                    <n.icon className={`w-5 h-5 ${isActive ? "" : "opacity-80"}`} />
-                  </div>
-                  <span className="truncate w-full text-center">{n.label}</span>
-                </>
-              )}
+              {() => {
+                const active = isItemActive(n.to);
+                return (
+                  <>
+                    <div className={`p-1.5 rounded-lg transition-colors ${active ? "bg-[#F58B10]/10" : ""}`}>
+                      <n.icon className={`w-5 h-5 ${active ? "" : "opacity-80"}`} />
+                    </div>
+                    <span className="truncate w-full text-center">{n.label}</span>
+                  </>
+                );
+              }}
             </NavLink>
           ))}
           {hiddenItems.length > 0 && (
