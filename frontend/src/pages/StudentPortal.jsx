@@ -34,6 +34,8 @@ import {
   BookOpen,
   CalendarCheck,
   Percent,
+  CheckSquare,
+  Eye,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +54,7 @@ export default function StudentPortal() {
   const [attendance, setAttendance] = useState([]);
   const [payments, setPayments] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloadingReport, setDownloadingReport] = useState(false);
 
@@ -74,10 +77,11 @@ export default function StudentPortal() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sRes, aRes, pRes] = await Promise.all([
+      const [sRes, aRes, pRes, tRes] = await Promise.all([
         api.get("/students"),
         api.get("/attendance"),
         api.get("/payments"),
+        api.get("/tasks").catch(() => ({ data: [] })),
       ]);
 
       let curStudent = sRes.data?.[0];
@@ -91,6 +95,7 @@ export default function StudentPortal() {
       setStudent(curStudent || null);
       setAttendance(aRes.data || []);
       setPayments(pRes.data || []);
+      setTasks(tRes.data || []);
 
       if (curStudent?.id) {
         try {
@@ -215,6 +220,36 @@ export default function StudentPortal() {
     if (feeFilter === "pending") return pendingPayments;
     return payments;
   }, [payments, feeFilter, paidPayments, pendingPayments]);
+
+  const pendingTasks = useMemo(() => {
+    return tasks.filter((t) => t.status !== "completed");
+  }, [tasks]);
+
+  const handleDownloadTaskPdf = (task) => {
+    if (!task.pdf_url) return;
+    if (task.pdf_type === "link") {
+      window.open(task.pdf_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const rawUrl = process.env.REACT_APP_BACKEND_URL || "";
+    const backend = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : "";
+    const fullUrl = task.pdf_url.startsWith("http") ? task.pdf_url : `${backend}${task.pdf_url}`;
+    const a = document.createElement("a");
+    a.href = `${fullUrl}?download=true`;
+    a.download = task.pdf_name || "assignment.pdf";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleViewTaskPdf = (task) => {
+    if (!task.pdf_url) return;
+    const rawUrl = process.env.REACT_APP_BACKEND_URL || "";
+    const backend = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : "";
+    const fullUrl = task.pdf_url.startsWith("http") ? task.pdf_url : `${backend}${task.pdf_url}`;
+    window.open(fullUrl, "_blank", "noopener,noreferrer");
+  };
 
   const handleDownloadReport = async () => {
     if (!student) return;
@@ -739,6 +774,73 @@ export default function StudentPortal() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Assigned Homework & Practice Material Section */}
+          {pendingTasks.length > 0 && (
+            <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                    <CheckSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-serif">Assigned Homework & Worksheets</CardTitle>
+                    <CardDescription className="text-xs">
+                      Tasks and practice materials assigned by your coach
+                    </CardDescription>
+                  </div>
+                </div>
+                <Link to="/tasks">
+                  <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80">
+                    View All Tasks <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pendingTasks.map((task) => (
+                  <div key={task.id} className="p-3.5 rounded-xl border border-border/60 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-foreground">{task.title}</span>
+                        {task.due_date && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                            Due: {task.due_date}
+                          </span>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                      )}
+                    </div>
+
+                    {task.pdf_url && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewTaskPdf(task)}
+                          className="h-8 text-xs gap-1.5"
+                        >
+                          {task.pdf_type === "link" ? <ExternalLink className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {task.pdf_type === "link" ? "Open Link" : "View"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleDownloadTaskPdf(task)}
+                          className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download PDF
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ========================================================= */}

@@ -353,28 +353,28 @@ export default function Students() {
               onClick={() => {
                 setFeeFilter(feeFilter === "paid" ? "all" : "paid");
               }}
-              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
                 feeFilter === "paid"
                   ? "bg-emerald-700 text-white border-emerald-700 font-semibold shadow-xs"
                   : "bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50/50"
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              {curMonthLabel} Fee Received ({paidCount})
+              {curMonthLabel} <span className="hidden sm:inline">Fee </span>Received ({paidCount})
             </button>
 
             <button
               onClick={() => {
                 setFeeFilter(feeFilter === "unpaid" ? "all" : "unpaid");
               }}
-              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
                 feeFilter === "unpaid"
                   ? "bg-rose-600 text-white border-rose-600 font-semibold shadow-xs"
                   : "bg-white text-rose-700 border-rose-200 hover:bg-rose-50/50"
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              {curMonthLabel} Fee Due ({unpaidCount})
+              {curMonthLabel} <span className="hidden sm:inline">Fee </span>Due ({unpaidCount})
             </button>
           </>
         )}
@@ -387,26 +387,26 @@ export default function Students() {
           {filtered.map((s) => (
             <div key={s.id} className="flex items-center justify-between hover:bg-secondary/50 transition-colors">
               <Link to={`/students/${s.id}`} data-testid={`student-row-${s.id}`}
-                className="flex items-center gap-3 min-w-0 flex-1 p-4">
-                <div className="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center font-serif text-lg shrink-0">
+                className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 p-3 sm:p-4">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary text-primary-foreground flex items-center justify-center font-serif text-base sm:text-lg rounded-lg shrink-0">
                   {s.name[0]}
                 </div>
-                <div className="min-w-0">
-                  <div className="font-medium flex items-center gap-2 truncate flex-wrap">
-                    <span>{s.name}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                    <span className="truncate max-w-[150px] sm:max-w-none">{s.name}</span>
                     {s.institute_name && (
-                      <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-medium rounded-full flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-medium rounded-full flex items-center gap-1 shrink-0">
                         <Building2 className="w-2.5 h-2.5" />
-                        {s.institute_name}
+                        <span className="truncate max-w-[90px] sm:max-w-none">{s.institute_name}</span>
                       </span>
                     )}
                     {s.progress_updated_at && (
                       <span
-                        className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200/80 font-medium rounded-full flex items-center gap-1 shrink-0"
+                        className="text-[10px] px-1.5 sm:px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200/80 font-medium rounded-full flex items-center gap-1 shrink-0"
                         title={`Progress updated: ${new Date(s.progress_updated_at).toLocaleString()}`}
                       >
                         <Sparkles className="w-2.5 h-2.5 text-amber-600" />
-                        Progress: {formatProgressDate(s.progress_updated_at)}
+                        <span className="hidden sm:inline">Progress: </span>{formatProgressDate(s.progress_updated_at)}
                       </span>
                     )}
                     {Array.isArray(s.tags) && s.tags.length > 0 && (
@@ -424,30 +424,32 @@ export default function Students() {
                     {s.level} · {s.phone || "no phone"}
                   </div>
                   {s.notes && (
-                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5 max-w-md" title={s.notes}>
+                    <div className="text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2 mt-0.5 max-w-md" title={s.notes}>
                       <span className="font-medium">Note:</span> {s.notes}
                     </div>
                   )}
                 </div>
               </Link>
-              <div className="flex items-center gap-2.5 shrink-0 px-4">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 pr-3 pl-1 sm:px-4">
                 {/* Current Month Fee Status Badge */}
                 {(user?.role === "admin" || user?.role === "institute") && (
                   s.is_fee_paid_this_month ? (
                     <span
-                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shrink-0"
+                      className="text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shrink-0"
                       title={s.current_month_fee?.paid_date ? `Paid on ${s.current_month_fee.paid_date.slice(0, 10)}` : 'Paid this month'}
                     >
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      <span>{curMonthLabel} Fee Paid</span>
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span className="hidden sm:inline">{curMonthLabel} Fee </span>
+                      <span>Paid</span>
                     </span>
                   ) : (
                     <span
-                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 shrink-0"
+                      className="text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 shrink-0"
                       title="Current month fee due / unpaid"
                     >
-                      <AlertTriangle className="w-3 h-3 text-rose-600" />
-                      <span>{curMonthLabel} Fee Due</span>
+                      <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                      <span className="hidden sm:inline">{curMonthLabel} Fee </span>
+                      <span>Due</span>
                     </span>
                   )
                 )}
@@ -470,11 +472,11 @@ export default function Students() {
                     }}
                     data-testid={`whatsapp-student-${s.id}`}
                     title="Send WhatsApp"
-                    className="p-1.5 text-[#25D366] hover:bg-[#25D366]/10 rounded transition-colors">
+                    className="p-1 sm:p-1.5 text-[#25D366] hover:bg-[#25D366]/10 rounded transition-colors">
                     <WhatsappIcon className="w-4 h-4" />
                   </button>
                 )}
-                <Link to={`/students/${s.id}`} className="p-1">
+                <Link to={`/students/${s.id}`} className="p-1 hidden sm:block">
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>
               </div>

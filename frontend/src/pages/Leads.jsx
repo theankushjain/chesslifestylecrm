@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Phone, PhoneCall, ChevronRight, Calendar, Download, FileText, Printer } from "lucide-react";
+import { Plus, Phone, PhoneCall, ChevronRight, Calendar, Download, FileText, Printer, Tag, X } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { WhatsappIcon } from "@/components/crm/WhatsappIcon";
@@ -28,6 +28,7 @@ export default function Leads() {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [selectedTag, setSelectedTag] = useState(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -38,14 +39,47 @@ export default function Leads() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = filter === "all" ? leads : leads.filter((l) => l.stage === filter);
+  // Compute most used tags across leads sorted by frequency
+  const popularTags = useMemo(() => {
+    const counts = {};
+    leads.forEach((l) => {
+      if (Array.isArray(l.tags)) {
+        l.tags.forEach((t) => {
+          const trimmed = (t || "").trim();
+          if (trimmed) {
+            const lower = trimmed.toLowerCase();
+            if (!counts[lower]) {
+              counts[lower] = { name: trimmed, count: 0 };
+            }
+            counts[lower].count += 1;
+          }
+        });
+      }
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [leads]);
+
+  const filtered = leads.filter((l) => {
+    const matchesStage = filter === "all" || l.stage === filter;
+    const matchesTag = !selectedTag || (
+      Array.isArray(l.tags) && l.tags.some((t) => (t || "").trim().toLowerCase() === selectedTag.toLowerCase())
+    );
+    return matchesStage && matchesTag;
+  });
+
   const grouped = STAGES.reduce((acc, s) => {
-    acc[s.key] = leads.filter((l) => l.stage === s.key);
+    acc[s.key] = leads.filter((l) => {
+      const matchesStage = l.stage === s.key;
+      const matchesTag = !selectedTag || (
+        Array.isArray(l.tags) && l.tags.some((t) => (t || "").trim().toLowerCase() === selectedTag.toLowerCase())
+      );
+      return matchesStage && matchesTag;
+    });
     return acc;
   }, {});
 
   const handleExportPDF = () => {
-    const head = ["Name", "Phone Number", "Stage", "Last Call", "Outcome and Remarks"];
+    const head = ["Name", "Phone Number", "Stage", "Tags", "Last Call", "Outcome and Remarks"];
     const body = filtered.map(l => {
       const stageObj = STAGES.find(s => s.key === l.stage);
       const stageLabel = stageObj ? stageObj.label : l.stage;
@@ -62,15 +96,17 @@ export default function Leads() {
         l.name,
         l.phone || "-",
         stageLabel,
+        Array.isArray(l.tags) && l.tags.length > 0 ? l.tags.join(", ") : "-",
         lastCallDate,
         outcomeStr
       ];
     });
 
     const filterLabel = filter === "all" ? "All Stages" : STAGES.find(s => s.key === filter)?.label || filter;
+    const tagLabel = selectedTag ? ` • Tag: #${selectedTag}` : "";
     generatePDF({
-      title: `Current Leads Summary (${filterLabel})`,
-      filename: `leads_summary_${filter}.pdf`,
+      title: `Current Leads Summary (${filterLabel}${tagLabel})`,
+      filename: `leads_summary_${filter}${selectedTag ? `_${selectedTag}` : ""}.pdf`,
       summary: [
         `Total Leads in this view: ${filtered.length}`,
         `Action suggestions are based on the scheduled follow-up dates.`
@@ -114,7 +150,7 @@ export default function Leads() {
       </div>
 
       {/* Stage filter chips */}
-      <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")} testid="filter-all">
           All ({leads.length})
         </FilterChip>
@@ -124,6 +160,61 @@ export default function Leads() {
           </FilterChip>
         ))}
       </div>
+
+      {/* Most Used Tags Filter Bar */}
+      {popularTags.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-1 text-muted-foreground mr-1 text-[11px] uppercase tracking-wider font-semibold shrink-0">
+            <Tag className="w-3.5 h-3.5" />
+            <span>Tags:</span>
+          </div>
+
+          <button
+            onClick={() => setSelectedTag(null)}
+            className={`shrink-0 text-xs px-2.5 py-1 rounded-lg border transition-all ${
+              !selectedTag
+                ? "bg-secondary text-foreground font-semibold border-border shadow-xs"
+                : "bg-white text-muted-foreground border-border/60 hover:bg-secondary/40"
+            }`}
+          >
+            All Tags
+          </button>
+
+          {popularTags.map(({ name, count }) => {
+            const isSelected = selectedTag?.toLowerCase() === name.toLowerCase();
+            return (
+              <button
+                key={name}
+                onClick={() => setSelectedTag(isSelected ? null : name)}
+                className={`shrink-0 text-xs px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                    : "bg-white text-muted-foreground border-border/60 hover:border-primary/50 hover:text-foreground"
+                }`}
+              >
+                <span>#{name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {count}
+                </span>
+                {isSelected && <X className="w-3 h-3 ml-0.5 opacity-80 hover:opacity-100" />}
+              </button>
+            );
+          })}
+
+          {selectedTag && (
+            <button
+              onClick={() => setSelectedTag(null)}
+              className="text-[11px] text-muted-foreground hover:text-rose-600 transition-colors ml-1 underline shrink-0"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading...</div>
@@ -142,12 +233,29 @@ export default function Leads() {
                     {l.name}
                     {Array.isArray(l.tags) && l.tags.length > 0 && (
                       <span className="flex items-center gap-1">
-                        {l.tags.slice(0, 2).map((t, i) => (
-                          <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary uppercase tracking-wider font-semibold rounded">
-                            {t}
-                          </span>
-                        ))}
-                        {l.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{l.tags.length - 2}</span>}
+                        {l.tags.slice(0, 3).map((t, i) => {
+                          const isTagActive = selectedTag?.toLowerCase() === (t || "").trim().toLowerCase();
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedTag(isTagActive ? null : (t || "").trim());
+                              }}
+                              title={`Filter by tag: #${t}`}
+                              className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold transition-colors ${
+                                isTagActive
+                                  ? "bg-primary text-primary-foreground shadow-xs font-bold ring-1 ring-primary"
+                                  : "bg-primary/10 text-primary hover:bg-primary/20"
+                              }`}
+                            >
+                              #{t}
+                            </button>
+                          );
+                        })}
+                        {l.tags.length > 3 && <span className="text-[10px] text-muted-foreground">+{l.tags.length - 3}</span>}
                       </span>
                     )}
                   </div>
@@ -184,7 +292,26 @@ export default function Leads() {
             );
           })}
           {filtered.length === 0 && (
-            <div className="p-8 text-center text-sm text-muted-foreground">No leads in this stage.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
+              <p>
+                No leads found
+                {filter !== "all" ? ` in stage "${STAGES.find((s) => s.key === filter)?.label || filter}"` : ""}
+                {selectedTag ? ` with tag #${selectedTag}` : ""}.
+              </p>
+              {(filter !== "all" || selectedTag) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilter("all");
+                    setSelectedTag(null);
+                  }}
+                  className="rounded-xl text-xs h-8"
+                >
+                  Reset Filters
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -10,6 +10,8 @@ import bcrypt
 import jwt
 import logging
 import asyncio
+import base64
+import urllib.parse
 from datetime import datetime, timezone, timedelta, date
 from typing import List, Optional, Dict, Any
 from pywebpush import webpush, WebPushException
@@ -347,6 +349,16 @@ class TaskIn(BaseModel):
     description: str = ""
     assignee: str
     due_date: Optional[str] = None
+    pdf_url: Optional[str] = None
+    pdf_name: Optional[str] = None
+    pdf_file_id: Optional[str] = None
+    pdf_type: Optional[str] = None  # 'upload' or 'link'
+    pdf_size: Optional[int] = None
+
+class TaskPdfUploadIn(BaseModel):
+    filename: str
+    data: str  # base64 string or data url
+    size: Optional[int] = None
 
 class TaskUpdate(BaseModel):
     status: str
@@ -615,19 +627,23 @@ async def on_startup():
     await db.transactions.create_index("type")
     await db.tasks.create_index("assignee")
     await db.tasks.create_index("status")
+    await db.task_files.create_index("created_at")
+    await db.tasks.create_index([("created_at", -1)])
     await db.attendance.create_index([("student_id", 1), ("date", 1)])
+    await db.attendance.create_index([("date", -1)])
     await db.batches.create_index("name")
     await db.institutes.create_index("name")
     await db.students.create_index("institute_id")
     await db.students.create_index("progress_updated_at")
+    await db.students.create_index("status")
     await db.student_progress.create_index("student_id", unique=True)
     await db.push_subscriptions.create_index("user_id")
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
-    await backfill_student_progress_timestamps()
     await seed_batches()
     await seed_institutes()
+    asyncio.create_task(backfill_student_progress_timestamps())
     asyncio.create_task(check_pending_tasks_and_notify())
     asyncio.create_task(check_completed_classes_and_notify())
 
@@ -1092,19 +1108,14 @@ async def _enrich_student(doc: dict, role: str, inst_map: Optional[dict] = None,
         default_pay = await get_default_payment_details()
     c["payment_details"] = resolve_institute_payment_details(inst, default_pay)
 
-    # Progress updated timestamp
-    if prog_map is not None:
-        c["progress_updated_at"] = prog_map.get(sid) or c.get("progress_updated_at")
-    elif not c.get("progress_updated_at"):
-        p = await db.student_progress.find_one({"student_id": sid})
-        if p:
-            ts = p.get("updated_at")
-            outcomes = p.get("outcomes", [])
-            completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
-            latest_cdate = max(completed_dates) if completed_dates else None
-            candidates = [cand for cand in [ts, latest_cdate] if cand]
-            if candidates:
-                c["progress_updated_at"] = max(candidates)
+    # Progress updated timestamp (already indexed and maintained directly on student doc)
+    if not c.get("progress_updated_at"):
+        if prog_map and prog_map.get(sid):
+            c["progress_updated_at"] = prog_map.get(sid)
+        else:
+            p = await db.student_progress.find_one({"student_id": sid}, {"updated_at": 1})
+            if p and p.get("updated_at"):
+                c["progress_updated_at"] = p.get("updated_at")
 
     # Current month fee receipt status
     now_dt = now_utc()
@@ -1172,24 +1183,10 @@ async def list_students(institute_id: Optional[str] = None, user: dict = Depends
     cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
     cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
 
-    prog_docs = await db.student_progress.find({}, {"student_id": 1, "updated_at": 1, "outcomes": 1}).to_list(2000)
-    prog_map = {}
-    for p in prog_docs:
-        s_id = str(p.get("student_id") or "")
-        if not s_id:
-            continue
-        ts = p.get("updated_at")
-        outcomes = p.get("outcomes", [])
-        completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
-        latest_cdate = max(completed_dates) if completed_dates else None
-        candidates = [cand for cand in [ts, latest_cdate] if cand]
-        if candidates:
-            prog_map[s_id] = max(candidates)
-
     accounts = await db.users.find({"role": "student", "linked_student_id": {"$ne": None}}, {"linked_student_id": 1, "email": 1}).to_list(2000)
     acc_map = {str(a["linked_student_id"]): a.get("email") for a in accounts if a.get("linked_student_id")}
 
-    enriched = [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map, prog_map, acc_map) for d in docs]
+    enriched = [await _enrich_student(d, user["role"], inst_map, default_pay, cur_pay_map, None, acc_map) for d in docs]
     # Arrange students whose progress was updated recently on the top
     enriched.sort(key=lambda s: (s.get("name") or "").lower())
     enriched.sort(key=lambda s: s.get("progress_updated_at") or "", reverse=True)
@@ -2361,21 +2358,7 @@ async def get_institute_students(iid: str, user: dict = Depends(require_roles("a
     cur_payments = await db.payments.find({"year": now_dt.year, "month": now_dt.month}).to_list(2000)
     cur_pay_map = {str(p["student_id"]): p for p in cur_payments}
 
-    prog_docs = await db.student_progress.find({"student_id": {"$in": [s["_id"] for s in students]}}, {"student_id": 1, "updated_at": 1, "outcomes": 1}).to_list(1000)
-    prog_map = {}
-    for p in prog_docs:
-        s_id = str(p.get("student_id") or "")
-        if not s_id:
-            continue
-        ts = p.get("updated_at")
-        outcomes = p.get("outcomes", [])
-        completed_dates = [o.get("completed_date") for o in outcomes if o.get("completed") and o.get("completed_date")]
-        latest_cdate = max(completed_dates) if completed_dates else None
-        candidates = [cand for cand in [ts, latest_cdate] if cand]
-        if candidates:
-            prog_map[s_id] = max(candidates)
-
-    enriched = [await _enrich_student(s, user["role"], inst_map, default_pay, cur_pay_map, prog_map) for s in students]
+    enriched = [await _enrich_student(s, user["role"], inst_map, default_pay, cur_pay_map) for s in students]
     # Arrange students whose progress was updated recently on the top
     enriched.sort(key=lambda s: (s.get("name") or "").lower())
     enriched.sort(key=lambda s: s.get("progress_updated_at") or "", reverse=True)
@@ -2556,12 +2539,84 @@ async def create_task(body: TaskIn, user: dict = Depends(require_roles("admin", 
         "description": body.description,
         "assignee": body.assignee,
         "due_date": body.due_date,
+        "pdf_url": body.pdf_url,
+        "pdf_name": body.pdf_name,
+        "pdf_file_id": body.pdf_file_id,
+        "pdf_type": body.pdf_type,
+        "pdf_size": body.pdf_size,
         "status": "pending",
         "created_by": user["_id"],
         "created_at": iso(now_utc())
     }
     await db.tasks.insert_one(doc)
     return clean(doc)
+
+@api.post("/tasks/upload-pdf")
+async def upload_task_pdf(body: TaskPdfUploadIn, user: dict = Depends(require_roles("admin", "staff"))):
+    if not body.filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "Only PDF files are supported")
+    
+    raw_data = body.data
+    if "," in raw_data:
+        raw_data = raw_data.split(",", 1)[1]
+    
+    try:
+        decoded = base64.b64decode(raw_data)
+    except Exception:
+        raise HTTPException(400, "Invalid base64 payload")
+    
+    # 15MB file limit
+    if len(decoded) > 15 * 1024 * 1024:
+        raise HTTPException(400, "File size exceeds 15MB limit")
+    
+    file_id = str(uuid.uuid4())
+    file_doc = {
+        "_id": file_id,
+        "filename": body.filename,
+        "content_type": "application/pdf",
+        "data": raw_data,
+        "size": len(decoded),
+        "uploaded_by": user["_id"],
+        "created_at": iso(now_utc())
+    }
+    await db.task_files.insert_one(file_doc)
+    return {
+        "file_id": file_id,
+        "filename": file_doc["filename"],
+        "url": f"/api/tasks/file/{file_id}",
+        "size": file_doc["size"]
+    }
+
+@api.get("/tasks/file/{file_id}")
+async def get_task_file(file_id: str, download: Optional[bool] = False):
+    doc = await db.task_files.find_one({"_id": file_id})
+    if not doc:
+        raise HTTPException(404, "PDF file not found")
+    
+    file_bytes = base64.b64decode(doc["data"])
+    filename = doc.get("filename", "assignment.pdf")
+    disposition = "attachment" if download else "inline"
+    safe_filename = urllib.parse.quote(filename)
+    
+    return Response(
+        content=file_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"; filename*=UTF-8\'\'{safe_filename}',
+            "Cache-Control": "public, max-age=86400",
+            "Content-Type": "application/pdf"
+        }
+    )
+
+@api.delete("/tasks/{tid}")
+async def delete_task(tid: str, user: dict = Depends(require_roles("admin", "staff"))):
+    task = await db.tasks.find_one({"_id": tid})
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if task.get("pdf_file_id"):
+        await db.task_files.delete_one({"_id": task["pdf_file_id"]})
+    await db.tasks.delete_one({"_id": tid})
+    return {"ok": True}
 
 @api.patch("/tasks/{tid}")
 async def update_task_status(tid: str, body: TaskUpdate, user: dict = Depends(get_current_user)):
