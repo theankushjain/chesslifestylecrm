@@ -621,6 +621,78 @@ async def check_completed_classes_and_notify():
         sleep_time = 60 - now.second
         await asyncio.sleep(sleep_time)
 
+async def notify_student_attendance_marked(student_id: str, attendance_date: str, status: str = "present", topic: Optional[str] = None):
+    """Sends in-app and web push notification to student account(s) when attendance is marked present/late."""
+    try:
+        student = await db.students.find_one({"_id": student_id})
+        student_name = student.get("name", "Student") if student else "Student"
+
+        today_iso = date.today().isoformat()
+        is_today = (attendance_date == today_iso)
+        date_label = "today" if is_today else f"for {attendance_date}"
+
+        status_label = "present" if status == "present" else "late (present)"
+        topic_suffix = f" (Topic: {topic})" if topic else ""
+        title = "Attendance Marked"
+        message = f"You have been marked {status_label} {date_label}{topic_suffix}."
+
+        # Find user accounts associated with this student
+        student_users = await db.users.find({
+            "role": "student",
+            "linked_student_id": student_id
+        }).to_list(None)
+
+        if not student_users and student and student.get("email"):
+            u = await db.users.find_one({"email": student["email"]})
+            if u:
+                student_users = [u]
+
+        for u in student_users:
+            uid = u["_id"]
+            # 1. Store in db.notifications collection for persistent in-app notifications
+            await db.notifications.delete_many({
+                "user_id": uid,
+                "student_id": student_id,
+                "type": "attendance",
+                "date": attendance_date
+            })
+            notif_doc = {
+                "_id": str(uuid.uuid4()),
+                "user_id": uid,
+                "student_id": student_id,
+                "type": "attendance",
+                "title": title,
+                "message": message,
+                "date": attendance_date,
+                "status": status,
+                "read": False,
+                "created_at": iso(now_utc())
+            }
+            await db.notifications.insert_one(notif_doc)
+
+            # 2. Send Web Push Notification if user has web push subscriptions
+            subs = await db.push_subscriptions.find({"user_id": uid}).to_list(None)
+            for sub in subs:
+                try:
+                    payload = json.dumps({
+                        "title": title,
+                        "body": message,
+                        "url": "/portal?tab=attendance"
+                    })
+                    webpush(
+                        subscription_info=sub["subscription"],
+                        data=payload,
+                        vapid_private_key=VAPID_PRIVATE_KEY,
+                        vapid_claims=VAPID_CLAIMS
+                    )
+                except WebPushException as e:
+                    if e.response and e.response.status_code in [404, 410]:
+                        await db.push_subscriptions.delete_one({"_id": sub["_id"]})
+                except Exception as ex:
+                    logger.warning(f"Could not deliver webpush to student {uid}: {ex}")
+    except Exception as e:
+        logger.error(f"Error in notify_student_attendance_marked: {e}")
+
 @app.on_event("startup")
 async def on_startup():
     await db.users.create_index("email", unique=True)
@@ -644,6 +716,8 @@ async def on_startup():
     await db.students.create_index("status")
     await db.student_progress.create_index("student_id", unique=True)
     await db.push_subscriptions.create_index("user_id")
+    await db.notifications.create_index([("user_id", 1), ("read", 1)])
+    await db.notifications.create_index([("user_id", 1), ("date", -1)])
     await seed_admin()
     await seed_demo_data()
     await backfill_dobs()
@@ -1416,6 +1490,7 @@ async def mark_attendance(body: AttendanceIn, user: dict = Depends(require_roles
             {"_id": body.student_id},
             {"$set": {"status": "active", "updated_at": iso(now_utc())}}
         )
+        await notify_student_attendance_marked(body.student_id, body.date, body.status, body.topic)
     return clean(doc)
 
 @api.delete("/attendance")
@@ -1715,7 +1790,79 @@ async def add_call_log(lid: str, body: CallLogIn, user: dict = Depends(require_r
 
 
 @api.get("/alerts")
-async def alerts(user: dict = Depends(require_roles("admin", "staff"))):
+async def alerts(user: dict = Depends(require_roles("admin", "staff", "student"))):
+    if user.get("role") == "student":
+        sid = user.get("linked_student_id")
+        if not sid and user.get("email"):
+            st = await db.students.find_one({"email": user.get("email")})
+            if st:
+                sid = st["_id"]
+
+        alerts_list = []
+        today_str = date.today().isoformat()
+
+        # 1. Live attendance record for today if marked present/late
+        if sid:
+            today_att = await db.attendance.find_one({
+                "student_id": sid,
+                "date": today_str,
+                "status": {"$in": ["present", "late"]}
+            })
+            if today_att:
+                status_label = "present" if today_att.get("status") == "present" else "late (present)"
+                topic_str = f" ({today_att.get('topic')})" if today_att.get('topic') else ""
+                alerts_list.append({
+                    "id": f"att-{today_att['_id']}",
+                    "type": "attendance",
+                    "severity": "low",
+                    "title": "Attendance Marked",
+                    "message": f"You have been marked {status_label} for today{topic_str}!",
+                    "date": today_att.get("date"),
+                })
+
+        # 2. Stored notifications from db.notifications (e.g. recent attendances or alerts)
+        stored_notifs = await db.notifications.find({
+            "user_id": user["_id"],
+            "read": {"$ne": True}
+        }).sort("created_at", -1).to_list(15)
+
+        for n in stored_notifs:
+            if n.get("type") == "attendance" and n.get("date") == today_str:
+                continue
+            alerts_list.append({
+                "id": n["_id"],
+                "type": n.get("type", "attendance"),
+                "severity": "low",
+                "title": n.get("title", "Attendance Marked"),
+                "message": n.get("message", "You have been marked present!"),
+                "date": n.get("date"),
+            })
+
+        # 3. Pending homework / tasks for this student
+        task_queries = [{"assignee": "all_students"}]
+        if sid:
+            task_queries.append({"assignee": sid})
+            student_batches = await db.batches.find({"student_ids": sid}).to_list(None)
+            if student_batches:
+                task_queries.append({"assignee": {"$in": [b["_id"] for b in student_batches]}})
+
+        pending_tasks = await db.tasks.find({
+            "status": "pending",
+            "$or": task_queries
+        }).to_list(20)
+
+        for t in pending_tasks:
+            alerts_list.append({
+                "id": t["_id"],
+                "type": "task",
+                "severity": "medium",
+                "title": f"Task: {t['title']}",
+                "message": t.get("description", "You have a pending task.") or "You have a pending task.",
+                "task_id": t["_id"],
+            })
+
+        return alerts_list
+
     today = date.today()
     cur_month, cur_year = today.month, today.year
     alerts_list = []
@@ -2114,6 +2261,9 @@ async def take_batch_attendance(bid: str, body: TakeAttendanceIn, user: dict = D
             {"_id": {"$in": attending_sids}},
             {"$set": {"status": "active", "updated_at": iso(now_utc())}}
         )
+        for sid in attending_sids:
+            att_st = "late" if sid in late else "present"
+            asyncio.create_task(notify_student_attendance_marked(sid, body.date, att_st, combined_topic))
         
     # 3. Automatically update learning progress outcomes for students who attended
     all_outcomes_to_complete = list(body.selected_outcome_texts or [])
@@ -2868,6 +3018,11 @@ async def subscribe_push(body: PushSubscriptionIn, user: dict = Depends(get_curr
     }
     await db.push_subscriptions.delete_many({"subscription.endpoint": body.subscription.get("endpoint")})
     await db.push_subscriptions.insert_one(sub_doc)
+    return {"ok": True}
+
+@api.post("/notifications/{nid}/read")
+async def mark_notification_read(nid: str, user: dict = Depends(get_current_user)):
+    await db.notifications.update_one({"_id": nid, "user_id": user["_id"]}, {"$set": {"read": True}})
     return {"ok": True}
 
 @api.post("/notifications/push")

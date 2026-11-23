@@ -226,6 +226,20 @@ export default function StudentPortal() {
     return tasks.filter((t) => t.status !== "completed");
   }, [tasks]);
 
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const todayAttendance = useMemo(() => {
+    return attendance.find(
+      (a) => a.date === todayStr && (a.status === "present" || a.status === "late")
+    );
+  }, [attendance, todayStr]);
+
   const handleDownloadTaskPdf = (task) => {
     if (!task.pdf_url) return;
     if (task.pdf_type === "link") {
@@ -475,6 +489,40 @@ export default function StudentPortal() {
         {/* TAB 1: OVERVIEW */}
         {/* ========================================================= */}
         <TabsContent value="overview" className="space-y-6 m-0">
+          {/* Today's Attendance Notification Banner */}
+          {todayAttendance && (
+            <div
+              className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
+              data-testid="attendance-today-banner"
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-base font-semibold text-emerald-900">
+                      Attendance Marked: {todayAttendance.status === "late" ? "Late (Present)" : "Present"} for Today
+                    </h4>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Today ({todayStr})
+                    </span>
+                  </div>
+                  <p className="text-xs md:text-sm text-emerald-700 mt-0.5">
+                    Your attendance for today has been recorded{todayAttendance.topic ? ` — Session topic: "${todayAttendance.topic}"` : ""}. Keep up the great consistency!
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => handleTabChange("attendance")}
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs shrink-0 w-full sm:w-auto"
+              >
+                View Attendance <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </div>
+          )}
+
           {/* Pending Fee Alert Notice (if pending > 0) */}
           {totalPendingAmount > 0 && (
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm" data-testid="pending-fee-alert">

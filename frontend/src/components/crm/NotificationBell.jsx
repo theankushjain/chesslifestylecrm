@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell } from "lucide-react";
+import { Bell, CheckCircle2, AlertTriangle, BookOpen } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -13,29 +13,50 @@ export default function NotificationBell() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user || user.role === "student") return;
+    if (!user) return;
     
     const fetchAlerts = async () => {
       try {
         const { data } = await api.get("/alerts");
-        setAlerts(data);
+        setAlerts(data || []);
       } catch (err) {
         console.error("Failed to fetch alerts:", err);
       }
     };
     
     fetchAlerts();
-    // Refresh alerts periodically (e.g., every 5 minutes)
-    const interval = setInterval(fetchAlerts, 5 * 60 * 1000);
+    // Refresh alerts periodically (e.g., every 3 minutes)
+    const interval = setInterval(fetchAlerts, 3 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user]);
 
-  if (!user || user.role === "student") {
+  if (!user) {
     return null;
   }
 
-  const handleAlertClick = (alert) => {
+  const handleAlertClick = async (alert) => {
     setOpen(false);
+
+    if (alert.id && !String(alert.id).startsWith("att-") && !String(alert.id).startsWith("bday-")) {
+      try {
+        await api.post(`/notifications/${alert.id}/read`);
+        setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+      } catch {
+        // Non-critical, ignore
+      }
+    }
+
+    if (user?.role === "student") {
+      if (alert.type === "attendance") {
+        navigate("/portal?tab=attendance");
+      } else if (alert.type === "task") {
+        navigate("/tasks");
+      } else {
+        navigate("/portal");
+      }
+      return;
+    }
+
     if (alert.type === "task") navigate("/tasks");
     else if (alert.type === "lead_followup") navigate("/leads");
     else if (alert.type === "unpaid_fee") navigate("/payments");
@@ -55,14 +76,14 @@ export default function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0 shadow-lg" align="end">
         <div className="p-3 border-b border-border/40 flex items-center justify-between">
           <h4 className="font-medium text-sm">Notifications</h4>
-          <span className="text-xs text-muted-foreground">{alerts.length} alerts</span>
+          <span className="text-xs text-muted-foreground">{alerts.length} {alerts.length === 1 ? 'alert' : 'alerts'}</span>
         </div>
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-80 overflow-y-auto divide-y divide-border/20">
           {alerts.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="p-6 text-center text-sm text-muted-foreground">
               No new notifications
             </div>
           ) : (
@@ -70,14 +91,34 @@ export default function NotificationBell() {
               <div
                 key={alert.id}
                 onClick={() => handleAlertClick(alert)}
-                className="p-3 border-b border-border/40 hover:bg-secondary/50 cursor-pointer transition-colors"
+                className="p-3 hover:bg-secondary/50 cursor-pointer transition-colors"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-semibold ${alert.severity === "high" ? "text-red-500" : "text-amber-500"}`}>
-                    {alert.title}
-                  </span>
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {alert.type === "attendance" ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    ) : alert.type === "task" ? (
+                      <BookOpen className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                    <span className={`text-xs font-semibold truncate ${
+                      alert.type === "attendance"
+                        ? "text-emerald-700"
+                        : alert.severity === "high"
+                        ? "text-red-500"
+                        : "text-amber-600"
+                    }`}>
+                      {alert.title}
+                    </span>
+                  </div>
+                  {alert.date && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {alert.date}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground pl-5 leading-relaxed">
                   {alert.message}
                 </p>
               </div>
