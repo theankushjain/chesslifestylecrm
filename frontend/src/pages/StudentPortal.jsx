@@ -36,6 +36,7 @@ import {
   Percent,
   CheckSquare,
   Eye,
+  Send,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -797,47 +798,67 @@ export default function StudentPortal() {
                 </Link>
               </CardHeader>
               <CardContent className="space-y-3">
-                {pendingTasks.map((task) => (
-                  <div key={task.id} className="p-3.5 rounded-xl border border-border/60 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm text-foreground">{task.title}</span>
-                        {task.due_date && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                            Due: {task.due_date}
-                          </span>
+                {pendingTasks.map((task) => {
+                  const isSubmitted = task.status === "submitted" || !!task.solution;
+                  return (
+                    <div key={task.id} className="p-3.5 rounded-xl border border-border/60 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground">{task.title}</span>
+                          {isSubmitted ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                              Solution Submitted
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                              Pending Solution
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                              Due: {task.due_date}
+                            </span>
+                          )}
+                        </div>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
                         )}
                       </div>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                      )}
-                    </div>
 
-                    {task.pdf_url && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewTaskPdf(task)}
-                          className="h-8 text-xs gap-1.5"
-                        >
-                          {task.pdf_type === "link" ? <ExternalLink className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          {task.pdf_type === "link" ? "Open Link" : "View"}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleDownloadTaskPdf(task)}
-                          className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Download PDF
-                        </Button>
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        {task.pdf_url && (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewTaskPdf(task)}
+                              className="h-8 text-xs gap-1.5"
+                            >
+                              {task.pdf_type === "link" ? <ExternalLink className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              {task.pdf_type === "link" ? "Open Link" : "View"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleDownloadTaskPdf(task)}
+                              className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Download PDF
+                            </Button>
+                          </>
+                        )}
+                        <Link to="/tasks">
+                          <Button size="sm" variant="secondary" className="h-8 text-xs gap-1.5 border border-border">
+                            <Send className="w-3.5 h-3.5" />
+                            {isSubmitted ? "View Solution" : "Submit Solution"}
+                          </Button>
+                        </Link>
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}

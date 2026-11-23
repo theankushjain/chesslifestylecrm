@@ -360,6 +360,12 @@ class TaskPdfUploadIn(BaseModel):
     data: str  # base64 string or data url
     size: Optional[int] = None
 
+class TaskSolutionIn(BaseModel):
+    solution_text: Optional[str] = ""
+    solution_url: Optional[str] = None
+    solution_name: Optional[str] = None
+    solution_file_id: Optional[str] = None
+
 class TaskUpdate(BaseModel):
     status: str
 
@@ -2519,20 +2525,53 @@ async def get_tasks(user: dict = Depends(get_current_user)):
         return []
     if user["role"] == "admin":
         tasks = await db.tasks.find().sort("created_at", -1).to_list(1000)
-    else:
-        queries = [{"assignee": user["_id"]}]
-        if user["role"] == "student":
-            queries.append({"assignee": "all_students"})
-            if user.get("linked_student_id"):
-                queries.append({"assignee": user["linked_student_id"]})
-                s = await db.students.find_one({"_id": user["linked_student_id"]})
-                if s and s.get("batch_id"):
-                    queries.append({"assignee": s["batch_id"]})
+    elif user["role"] == "staff":
+        # Staff can see tasks created by them, plus tasks assigned to them / all staff
+        queries = [
+            {"created_by": user["_id"]},
+            {"assignee": user["_id"]},
+            {"assignee": "all_staff"}
+        ]
         tasks = await db.tasks.find({"$or": queries}).sort("created_at", -1).to_list(1000)
+    else:  # student
+        queries = [{"assignee": user["_id"]}, {"assignee": "all_students"}]
+        if user.get("linked_student_id"):
+            queries.append({"assignee": user["linked_student_id"]})
+            s = await db.students.find_one({"_id": user["linked_student_id"]})
+            if s and s.get("batch_id"):
+                queries.append({"assignee": s["batch_id"]})
+        tasks = await db.tasks.find({"$or": queries}).sort("created_at", -1).to_list(1000)
+
+    # Enrich tasks with creator details (created_by_name, created_by_role)
+    creator_ids = list(set([t.get("created_by") for t in tasks if t.get("created_by")]))
+    if creator_ids:
+        creators = await db.users.find({"_id": {"$in": creator_ids}}, {"name": 1, "role": 1, "email": 1}).to_list(None)
+        creator_map = {str(c["_id"]): c for c in creators}
+        for t in tasks:
+            cid = str(t.get("created_by") or "")
+            c_info = creator_map.get(cid)
+            if c_info:
+                t["created_by_name"] = c_info.get("name") or c_info.get("email")
+                t["created_by_role"] = c_info.get("role")
+            else:
+                t["created_by_name"] = "Admin"
+                t["created_by_role"] = "admin"
+    else:
+        for t in tasks:
+            t["created_by_name"] = "Admin"
+            t["created_by_role"] = "admin"
+
     return [clean(t) for t in tasks]
 
 @api.post("/tasks")
 async def create_task(body: TaskIn, user: dict = Depends(require_roles("admin", "staff"))):
+    if user["role"] == "staff":
+        if body.assignee == "all_staff":
+            raise HTTPException(403, "Staff members can only assign tasks to students")
+        target_user = await db.users.find_one({"_id": body.assignee})
+        if target_user and target_user.get("role") in ("admin", "staff"):
+            raise HTTPException(403, "Staff members can only assign tasks to students")
+
     doc = {
         "_id": str(uuid.uuid4()),
         "title": body.title,
@@ -2549,10 +2588,12 @@ async def create_task(body: TaskIn, user: dict = Depends(require_roles("admin", 
         "created_at": iso(now_utc())
     }
     await db.tasks.insert_one(doc)
+    doc["created_by_name"] = user.get("name") or user.get("email")
+    doc["created_by_role"] = user.get("role")
     return clean(doc)
 
 @api.post("/tasks/upload-pdf")
-async def upload_task_pdf(body: TaskPdfUploadIn, user: dict = Depends(require_roles("admin", "staff"))):
+async def upload_task_pdf(body: TaskPdfUploadIn, user: dict = Depends(require_roles("admin", "staff", "student"))):
     if not body.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are supported")
     
@@ -2608,19 +2649,68 @@ async def get_task_file(file_id: str, download: Optional[bool] = False):
         }
     )
 
+@api.post("/tasks/{tid}/submit")
+async def submit_task_solution(tid: str, body: TaskSolutionIn, user: dict = Depends(get_current_user)):
+    task = await db.tasks.find_one({"_id": tid})
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    student_name = user.get("name") or user.get("email")
+    if user.get("linked_student_id"):
+        st = await db.students.find_one({"_id": user["linked_student_id"]})
+        if st:
+            student_name = st.get("name") or student_name
+
+    solution_doc = {
+        "solution_text": body.solution_text or "",
+        "solution_url": body.solution_url,
+        "solution_name": body.solution_name,
+        "solution_file_id": body.solution_file_id,
+        "submitted_at": iso(now_utc()),
+        "submitted_by_id": user["_id"],
+        "submitted_by_name": student_name
+    }
+
+    await db.tasks.update_one(
+        {"_id": tid},
+        {"$set": {
+            "solution": solution_doc,
+            "status": "submitted",
+            "updated_at": iso(now_utc())
+        }}
+    )
+    doc = await db.tasks.find_one({"_id": tid})
+    return clean(doc)
+
 @api.delete("/tasks/{tid}")
 async def delete_task(tid: str, user: dict = Depends(require_roles("admin", "staff"))):
     task = await db.tasks.find_one({"_id": tid})
     if not task:
         raise HTTPException(404, "Task not found")
+    if user["role"] == "staff" and task.get("created_by") != user["_id"]:
+        raise HTTPException(403, "Staff can only delete tasks created by them")
     if task.get("pdf_file_id"):
         await db.task_files.delete_one({"_id": task["pdf_file_id"]})
+    if task.get("solution", {}).get("solution_file_id"):
+        await db.task_files.delete_one({"_id": task["solution"]["solution_file_id"]})
     await db.tasks.delete_one({"_id": tid})
     return {"ok": True}
 
 @api.patch("/tasks/{tid}")
 async def update_task_status(tid: str, body: TaskUpdate, user: dict = Depends(get_current_user)):
-    await db.tasks.update_one({"_id": tid}, {"$set": {"status": body.status}})
+    task = await db.tasks.find_one({"_id": tid})
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    if user["role"] == "student":
+        raise HTTPException(403, "Students cannot mark tasks as completed. Please submit your solution.")
+
+    # Only admin or the staff member who assigned the task to student can mark it as completed
+    if user["role"] == "staff":
+        if task.get("created_by") != user["_id"] and task.get("assignee") != user["_id"]:
+            raise HTTPException(403, "Only the admin or the coach who assigned this task can update its status.")
+
+    await db.tasks.update_one({"_id": tid}, {"$set": {"status": body.status, "updated_at": iso(now_utc())}})
     doc = await db.tasks.find_one({"_id": tid})
     return clean(doc)
 
